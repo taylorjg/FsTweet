@@ -1,0 +1,6 @@
+obj/
+bin/
+paket-files/
+packages/
+.fake
+.paket
