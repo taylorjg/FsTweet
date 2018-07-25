@@ -1,8 +1,13 @@
-﻿// Learn more about F# at http://fsharp.org
+﻿open Suave
+open Suave.Filters
+open Suave.Operators
+open Suave.Successful
 
-open System
+let app = GET >=> path "/hello" >=> OK "Hello GET"
+
+let config = { defaultConfig with bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 5000 ] }
 
 [<EntryPoint>]
 let main argv =
-    printfn "Hello World from F#!"
-    0 // return an integer exit code
+    startWebServer config app
+    0
