@@ -1,13 +1,27 @@
 ﻿open Suave
 open Suave.Filters
 open Suave.Operators
-open Suave.Successful
+open Suave.DotLiquid
+open System.IO
+open System.Reflection
 
-let app = GET >=> path "/hello" >=> OK "Hello GET"
+let currentPath =
+    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
 
-let config = { defaultConfig with bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 5000 ] }
+let initDotLiquid =
+    let templatesDir = Path.Combine(currentPath, "views")
+    printfn "%A" templatesDir
+    setTemplatesDir templatesDir
+
+let app =
+    path "/" >=> page "home.liquid" ""
+
+let config =
+    { defaultConfig with bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 5000 ] }
 
 [<EntryPoint>]
 let main argv =
+    initDotLiquid
+    setCSharpNamingConvention ()
     startWebServer config app
     0
