@@ -10,11 +10,10 @@ let currentPath =
 
 let initDotLiquid =
     let templatesDir = Path.Combine(currentPath, "views")
-    printfn "%A" templatesDir
     setTemplatesDir templatesDir
 
 let app =
-    path "/" >=> page "home.liquid" ""
+    path "/" >=> page "guest/home.liquid" ""
 
 let config =
     { defaultConfig with bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 5000 ] }

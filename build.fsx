@@ -1,19 +1,19 @@
 #load ".fake/build.fsx/intellisense.fsx"
 
+open System.IO
 open Fake.Core
 open Fake.DotNet
 open Fake.IO
 open Fake.IO.Globbing.Operators
 open Fake.Core.TargetOperators
 
-let noFilter = fun _ -> true
+let distDir = Path.Combine(Directory.GetCurrentDirectory(), "dist")
 
 Target.create "Views" (fun _ ->
     let srcDir = "./src/views"
-    let targetDir1 = "./src/bin/Debug/netcoreapp2.1/views"
-    let targetDir2 = "./src/bin/Release/netcoreapp2.1/views"
-    Shell.copyDir targetDir1 srcDir noFilter
-    Shell.copyDir targetDir2 srcDir noFilter
+    let targetDir = Path.Combine(distDir, "views") 
+    let noFilter = fun _ -> true
+    Shell.copyDir targetDir srcDir noFilter
 )
 
 Target.create "Clean" (fun _ ->
@@ -22,9 +22,12 @@ Target.create "Clean" (fun _ ->
     |> Shell.cleanDirs 
 )
 
+let setOutputPath buildOptions: DotNet.BuildOptions =
+    { buildOptions with OutputPath = Some distDir }
+
 Target.create "Build" (fun _ ->
     !! "src/**/*.*proj"
-    |> Seq.iter (DotNet.build id)
+    |> Seq.iter (DotNet.build setOutputPath)
 )
 
 Target.create "All" ignore
