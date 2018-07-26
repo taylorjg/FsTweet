@@ -30,6 +30,11 @@ Target.create "Build" (fun _ ->
     |> Seq.iter (DotNet.build setOutputPath)
 )
 
+Target.create "Run" (fun _ ->
+    let cmd = Path.Combine(distDir, "FsTweet.dll")
+    DotNet.exec id cmd "" |> ignore
+)
+
 Target.create "All" ignore
 
 "Clean"
