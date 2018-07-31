@@ -1,11 +1,14 @@
 NUGET
   remote: https://www.nuget.org/api/v2
     DotLiquid (2.0.271)
-    FSharp.Core (4.5.1) - restriction: || (>= net461) (>= netstandard2.0)
+    FSharp.Core (4.5.2) - restriction: || (>= net461) (>= netstandard2.0)
     Suave (2.4.3)
       FSharp.Core (>= 4.0 < 5.0) - restriction: || (>= net461) (>= netstandard2.0)
     Suave.DotLiquid (2.4.3)
       DotLiquid  - restriction: && (< net461) (< netstandard2.0)
+      FSharp.Core (>= 4.0 < 5.0) - restriction: || (>= net461) (>= netstandard2.0)
+      Suave (>= 2.0 < 3.0) - restriction: || (>= net461) (>= netstandard2.0)
+    Suave.Experimental (2.4.3)
       FSharp.Core (>= 4.0 < 5.0) - restriction: || (>= net461) (>= netstandard2.0)
       Suave (>= 2.0 < 3.0) - restriction: || (>= net461) (>= netstandard2.0)
 

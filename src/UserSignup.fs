@@ -4,9 +4,10 @@ open System
 module Suave =
 
   open Suave
-  open Suave.Filters
-  open Suave.Operators
   open Suave.DotLiquid
+  open Suave.Filters
+  open Suave.Form
+  open Suave.Operators
 
   type UserSignupViewModel = {
     Username: String
@@ -23,8 +24,13 @@ module Suave =
   }
 
   let handleUserSignup ctx = async {
-    printfn "%A" ctx.request.form
-    return! Redirection.FOUND "/signup" ctx
+    match bindEmptyForm ctx.request with
+    | Choice1Of2 (userSignupViewModel: UserSignupViewModel) ->
+      printfn "%A" userSignupViewModel
+      return! Redirection.FOUND "/signup" ctx
+    | Choice2Of2 err ->
+      let viewModel = { emptyUserSignupViewModel with Error = Some err }
+      return! page "user/signup.liquid" viewModel ctx
   }
 
   let webPart =
