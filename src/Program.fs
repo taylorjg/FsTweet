@@ -3,6 +3,7 @@ open Suave.DotLiquid
 open Suave.Files
 open Suave.Filters
 open Suave.Operators
+open System
 open System.IO
 open System.Reflection
 
@@ -28,9 +29,12 @@ let app =
     UserSignup.Suave.webPart
   ]
 
+let portEnvVar = Environment.GetEnvironmentVariable "PORT"
+let port = if String.IsNullOrEmpty portEnvVar then 5000 else (int)portEnvVar
+
 let config =
   { defaultConfig with
-      bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" 5000 ]
+      bindings = [ HttpBinding.createSimple HTTP "0.0.0.0" port ]
       homeFolder = Some currentPath
   }
 
