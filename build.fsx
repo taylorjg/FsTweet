@@ -12,13 +12,13 @@ let distDir = Path.Combine(Directory.GetCurrentDirectory(), "dist")
 let noFilter = fun _ -> true
 
 Target.create "Views" (fun _ ->
-    let srcDir = "./src/views"
+    let srcDir = "./src/FsTweet.Web/views"
     let targetDir = Path.Combine(distDir, "views") 
     Shell.copyDir targetDir srcDir noFilter
 )
 
 Target.create "Assets" (fun _ ->
-    let srcDir = "./src/assets"
+    let srcDir = "./src/FsTweet.Web/assets"
     let targetDir = Path.Combine(distDir, "assets") 
     Shell.copyDir targetDir srcDir noFilter
 )
