@@ -2,6 +2,7 @@ source https://www.nuget.org/api/v2
 
 nuget Chessie
 nuget DotLiquid
+nuget FAKE
 nuget suave
 nuget Suave.DotLiquid
 nuget Suave.Experimental
@@ -11,3 +12,10 @@ group Build
     nuget Fake.DotNet.Cli
     nuget Fake.IO.FileSystem
     nuget Fake.Core.Target
+
+group Database
+source https://www.nuget.org/api/v2
+
+nuget FluentMigrator
+nuget FluentMigrator.Console
+nuget Npgsql

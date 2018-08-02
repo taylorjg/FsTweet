@@ -12,34 +12,39 @@ let distDir = Path.Combine(Directory.GetCurrentDirectory(), "dist")
 let noFilter = fun _ -> true
 
 Target.create "Views" (fun _ ->
-    let srcDir = "./src/FsTweet.Web/views"
-    let targetDir = Path.Combine(distDir, "views") 
-    Shell.copyDir targetDir srcDir noFilter
+  let srcDir = "./src/FsTweet.Web/views"
+  let targetDir = Path.Combine(distDir, "views") 
+  Shell.copyDir targetDir srcDir noFilter
 )
 
 Target.create "Assets" (fun _ ->
-    let srcDir = "./src/FsTweet.Web/assets"
-    let targetDir = Path.Combine(distDir, "assets") 
-    Shell.copyDir targetDir srcDir noFilter
+  let srcDir = "./src/FsTweet.Web/assets"
+  let targetDir = Path.Combine(distDir, "assets") 
+  Shell.copyDir targetDir srcDir noFilter
 )
 
 Target.create "Clean" (fun _ ->
-    !! "src/**/bin"
-    ++ "src/**/obj"
-    |> Shell.cleanDirs 
+  !! "src/**/bin"
+  ++ "src/**/obj"
+  |> Shell.cleanDirs 
 )
 
 let setOutputPath buildOptions: DotNet.BuildOptions =
-    { buildOptions with OutputPath = Some distDir }
+  { buildOptions with OutputPath = Some distDir }
 
 Target.create "Build" (fun _ ->
-    !! "src/**/*.*proj"
-    |> Seq.iter (DotNet.build setOutputPath)
+  !! "src/FsTweet.Web/*.fsproj"
+  |> Seq.iter (DotNet.build setOutputPath)
 )
 
 Target.create "Run" (fun _ ->
-    let cmd = Path.Combine(distDir, "FsTweet.dll")
-    DotNet.exec id cmd "" |> ignore
+  let cmd = Path.Combine(distDir, "FsTweet.Web.dll")
+  DotNet.exec id cmd "" |> ignore
+)
+
+Target.create "BuildMigrations" (fun _ ->
+  !! "src/FsTweet.Db.Migrations/*.fsproj"
+  |> Seq.iter (DotNet.build setOutputPath)
 )
 
 Target.create "All" ignore

@@ -3,3 +3,5 @@ DotLiquid
 Suave.DotLiquid
 Suave.Experimental
 Chessie
+group Database
+FluentMigrator
