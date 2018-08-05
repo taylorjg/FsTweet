@@ -19,4 +19,5 @@ source https://www.nuget.org/api/v2
 
 nuget FluentMigrator
 nuget FluentMigrator.Console
-nuget Npgsql
+nuget Npgsql 3.1.10
+nuget SQLProvider

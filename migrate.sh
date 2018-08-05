@@ -1,6 +1,6 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-DEFAULT_CONNECTION_STRING="Server=127.0.0.1;Port=5432;Database=FsTweet;User Id=postgres;Password=test;"
+DEFAULT_CONNECTION_STRING="Server=localhost;Port=5432;User Id=postgres;Password=test;Database=FsTweet;"
 CONNECTION_STRING=${FSTWEET_DB_CONN_STRING:-${DEFAULT_CONNECTION_STRING}}
 
 dotnet build \

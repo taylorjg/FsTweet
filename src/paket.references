@@ -6,3 +6,5 @@ Chessie
 BCrypt.Net-Next
 group Database
 FluentMigrator
+Npgsql
+SQLProvider

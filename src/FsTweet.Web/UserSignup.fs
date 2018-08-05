@@ -1,5 +1,7 @@
 namespace UserSignup
 
+open Database
+open Database
 module Domain =
   open BCrypt.Net
   open Chessie.ErrorHandling
@@ -149,8 +151,10 @@ module Domain =
 module Persistence =
   open Chessie.ErrorHandling
   open Domain
-
-  let createUser createUserRequest = asyncTrial {
+  
+  let createUser (getDataContext: GetDataContext) createUserRequest = asyncTrial {
+    let ctx = getDataContext ()
+    // let users = ctx.Public.Users
     printfn "User created: %A" createUserRequest
     return UserId 1
   }
@@ -244,9 +248,11 @@ module Suave =
       return! page signupTemplatePath viewModel ctx
   }
 
-  let signupUser = Domain.signupUser Persistence.createUser Email.sendSignupEmail
 
-  let webPart =
+  let webPart getDataContext =
+    let createUser = Persistence.createUser getDataContext
+    let sendSignupEmail = Email.sendSignupEmail
+    let signupUser = Domain.signupUser createUser sendSignupEmail
     choose [
       path "/signup" >=>
         choose [
