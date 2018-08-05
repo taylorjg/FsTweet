@@ -163,8 +163,8 @@ module Persistence =
       IsEmailVerified = false
     }
     dbContext.Users.Add(newUser) |> ignore
-    dbContext.SaveChanges() |> ignore
-    printfn "User created: %A" createUserRequest
+    let! _ = dbContext.SaveChangesAsync() |> Async.AwaitTask
+    printfn "User created: %A" newUser
     return newUser.Id |> UserId
   }
 
