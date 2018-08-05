@@ -1,23 +1,6 @@
 module Database
 
-open FSharp.Data.Sql
-open Npgsql
-
-[<Literal>]
-let private ConnectionString =
-  "Server=localhost;Port=5432;User Id=postgres;Password=test;Database=FsTweet;"
-
-[<Literal>]
-let private ResolutionPath =
-  @"./../../packages/database/Npgsql/lib/net451"
-
-type Db = SqlDataProvider<
-            ConnectionString=ConnectionString,
-            DatabaseVendor=Common.DatabaseProviderTypes.POSTGRESQL,
-            ResolutionPath=ResolutionPath,
-            UseOptionTypes=true>
-type DataContext = Db.dataContext
-type GetDataContext = unit -> DataContext
+open Microsoft.EntityFrameworkCore
 
 let makeConnectionString databaseUrl =
   let uri = new System.Uri(databaseUrl)
@@ -31,6 +14,28 @@ let makeConnectionString databaseUrl =
     uri.Port
     username
     password
-    
+
+type [<CLIMutable>] User = {
+  Id: int
+  Username: string
+  PasswordHash: string
+  Email: string
+  EmailVerificationCode: string
+  IsEmailVerified: bool
+}
+
+type AppDbContext =
+  inherit DbContext
+  new(options: DbContextOptions<AppDbContext>) = { inherit DbContext(options) }
+  [<DefaultValue>] val mutable users: DbSet<User>
+  member this.Users
+    with get() = this.users
+    and set users = this.users <- users
+
+type GetDataContext = unit -> AppDbContext
+
 let dataContext (connectionString: string): GetDataContext =
-  fun _ -> Db.GetDataContext connectionString
+  let optionsBuilder = new DbContextOptionsBuilder<AppDbContext>()
+  optionsBuilder.UseNpgsql(connectionString) |> ignore
+  let options = optionsBuilder.Options
+  fun _ -> new AppDbContext(options)

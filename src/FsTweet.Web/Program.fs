@@ -31,22 +31,20 @@ let config =
       homeFolder = Some currentPath
   }
 
+let databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
+let connectionString = makeConnectionString databaseUrl
+let getDataContext = dataContext connectionString
+
+let app =
+  choose [
+    serveAssets
+    serveFavIcon
+    path "/" >=> page "guest/home.liquid" ""
+    UserSignup.Suave.webPart getDataContext
+  ]
+
 [<EntryPoint>]
 let main argv =
-
-  let databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-  let connectionString = makeConnectionString databaseUrl
-  let getDataContext = dataContext connectionString
-
-  let app =
-    choose [
-      serveAssets
-      serveFavIcon
-      path "/" >=> page "guest/home.liquid" ""
-      UserSignup.Suave.webPart getDataContext
-    ]
-
-  printfn "connectionString: %s" connectionString
   initDotLiquid
   setCSharpNamingConvention ()
   startWebServer config app

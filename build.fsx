@@ -42,11 +42,6 @@ Target.create "Run" (fun _ ->
   DotNet.exec id cmd "" |> ignore
 )
 
-Target.create "BuildMigrations" (fun _ ->
-  !! "src/FsTweet.Db.Migrations/*.fsproj"
-  |> Seq.iter (DotNet.build setOutputPath)
-)
-
 Target.create "All" ignore
 
 "Clean"

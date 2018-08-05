@@ -6,5 +6,5 @@ Chessie
 BCrypt.Net-Next
 group Database
 FluentMigrator
-Npgsql
-SQLProvider
+Npgsql.EntityFrameworkCore.PostgreSQL
+Microsoft.EntityFrameworkCore

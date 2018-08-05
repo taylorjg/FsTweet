@@ -152,11 +152,20 @@ module Persistence =
   open Chessie.ErrorHandling
   open Domain
   
-  let createUser (getDataContext: GetDataContext) createUserRequest = asyncTrial {
-    let ctx = getDataContext ()
-    // let users = ctx.Public.Users
+  let createUser (getDataContext: GetDataContext) (createUserRequest: CreateUserRequest) = asyncTrial {
+    let dbContext = getDataContext ()
+    let newUser: User = {
+      Id = 0
+      Username = createUserRequest.Username.Value
+      PasswordHash = createUserRequest.PasswordHash.Value
+      Email = createUserRequest.EmailAddress.Value
+      EmailVerificationCode = createUserRequest.VerificationCode.Value
+      IsEmailVerified = false
+    }
+    dbContext.Users.Add(newUser) |> ignore
+    dbContext.SaveChanges() |> ignore
     printfn "User created: %A" createUserRequest
-    return UserId 1
+    return newUser.Id |> UserId
   }
 
 module Email =
