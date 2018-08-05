@@ -1,8 +1,6 @@
 namespace UserSignup
 
-open System
 module Domain =
-
   open BCrypt.Net
   open Chessie.ErrorHandling
   open System.Security.Cryptography
@@ -148,8 +146,25 @@ module Domain =
       return userId
     }
 
-module Suave =
+module Persistence =
+  open Chessie.ErrorHandling
+  open Domain
 
+  let createUser createUserRequest = asyncTrial {
+    printfn "User created: %A" createUserRequest
+    return UserId 1
+  }
+
+module Email =
+  open Chessie.ErrorHandling
+  open Domain
+
+  let sendSignupEmail sendSignupEmailRequest = asyncTrial {
+    printfn "Email sent: %A" sendSignupEmailRequest
+    return ()
+  }
+
+module Suave =
   open Chessie.ErrorHandling
   open Domain
   open Suave
@@ -159,6 +174,7 @@ module Suave =
   open Suave.Operators
 
   let signupTemplatePath = "user/signup.liquid"
+  let signupSuccessTemplatePath = "user/signup_success.liquid"
 
   type UserSignupViewModel = {
     Username: string
@@ -174,26 +190,68 @@ module Suave =
     Error = None
   }
 
-  let handleUserSignup ctx = async {
+  let handleUserSignupSuccess viewModel _ =
+    sprintf "/signup/success/%s" viewModel.Username |> Redirection.FOUND
+
+  let handleCreateUserError viewModel = function
+  | EmailAlreadyExists ->
+    let viewModel = { viewModel with Error = Some "EmailAddress already exists" }
+    page signupTemplatePath viewModel
+  | UsernameAlreadyExists ->
+    let viewModel = { viewModel with Error = Some "Username already exists" }
+    page signupTemplatePath viewModel
+  | Error ex ->
+    printfn "server error: %A" ex
+    let viewModel = { viewModel with Error = Some "Something went wrong" }
+    page signupTemplatePath viewModel
+
+  let handleSendSignupEmailError viewModel err =
+    printfn "Error while sending signup email: %A" err
+    let msg = "Something went wrong"
+    let viewModel = { viewModel with Error = Some msg }
+    page signupTemplatePath viewModel
+
+  let handleSignupUserError viewModel errs =
+    match List.head errs with
+    | CreateUserError err -> handleCreateUserError viewModel err
+    | SendSignupEmailError err -> handleSendSignupEmailError viewModel err
+
+  let handleSignupUserResult viewModel result =
+    either
+      (handleUserSignupSuccess viewModel)
+      (handleSignupUserError viewModel) result
+      
+  let handleSignupUserAsyncResult viewModel asyncResult =
+    asyncResult
+    |> Async.ofAsyncResult
+    |> Async.map (handleSignupUserResult viewModel)
+
+  let handleUserSignup signupUser ctx = async {
     match bindEmptyForm ctx.request with
     | Choice1Of2 (vm: UserSignupViewModel) ->
       let result = SignupUserRequest.TryCreate (vm.Username, vm.Password, vm.Email)
-      let onSuccess (signupUserRequest, _) =
-        printfn "%A" signupUserRequest
-        Redirection.FOUND "/signup" ctx
-      let onFailure msgs =
+      match result with
+      | Ok (signupUserRequest, _) ->
+        let asyncResult = signupUser signupUserRequest
+        let! webpart = handleSignupUserAsyncResult vm asyncResult
+        return! webpart ctx
+      | Bad msgs ->
         let msg = List.head msgs
         let viewModel = { vm with Error = Some msg }
-        page signupTemplatePath viewModel ctx
-      return! either onSuccess onFailure result      
+        return! page signupTemplatePath viewModel ctx
     | Choice2Of2 msg ->
       let viewModel = { emptyUserSignupViewModel with Error = Some msg }
       return! page signupTemplatePath viewModel ctx
   }
 
+  let signupUser = Domain.signupUser Persistence.createUser Email.sendSignupEmail
+
   let webPart =
-    path "/signup" >=>
-      choose [
-        GET >=> page signupTemplatePath emptyUserSignupViewModel
-        POST >=> handleUserSignup
-      ]
+    choose [
+      path "/signup" >=>
+        choose [
+          GET >=> page signupTemplatePath emptyUserSignupViewModel
+          POST >=> handleUserSignup signupUser
+        ]
+      pathScan "/signup/success/%s" (page signupSuccessTemplatePath)      
+    ]
