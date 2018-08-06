@@ -1,7 +1,5 @@
 namespace UserSignup
 
-open Database
-open Database
 module Domain =
   open BCrypt.Net
   open Chessie.ErrorHandling
@@ -150,7 +148,24 @@ module Domain =
 
 module Persistence =
   open Chessie.ErrorHandling
+  open Database
   open Domain
+  open Npgsql
+
+  let private mapException (ex: System.Exception) =
+    match ex with
+    | :? System.AggregateException as agEx ->
+      let ie = agEx.Flatten().InnerException
+      let iie = agEx.Flatten().InnerException.InnerException
+      let firstEx = if iie <> null then iie else ie
+      match firstEx with
+      | :? PostgresException as pgEx ->
+        match pgEx.ConstraintName, pgEx.SqlState with
+        | "IX_Users_Username", "23505" -> UsernameAlreadyExists
+        | "IX_Users_Email", "23505" -> EmailAlreadyExists
+        | _ -> Error pgEx
+      | _ -> Error agEx
+    | _ -> Error ex
   
   let createUser (getDataContext: GetDataContext) (createUserRequest: CreateUserRequest) = asyncTrial {
     let dbContext = getDataContext ()
@@ -163,7 +178,7 @@ module Persistence =
       IsEmailVerified = false
     }
     dbContext.Users.Add(newUser) |> ignore
-    let! _ = dbContext.SaveChangesAsync() |> Async.AwaitTask
+    do! saveChangesAsync dbContext |> mapAsyncFailure mapException
     printfn "User created: %A" newUser
     return newUser.Id |> UserId
   }
@@ -256,7 +271,6 @@ module Suave =
       let viewModel = { emptyUserSignupViewModel with Error = Some msg }
       return! page signupTemplatePath viewModel ctx
   }
-
 
   let webPart getDataContext =
     let createUser = Persistence.createUser getDataContext

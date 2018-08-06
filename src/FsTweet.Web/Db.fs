@@ -1,5 +1,6 @@
 module Database
 
+open Chessie.ErrorHandling
 open Microsoft.EntityFrameworkCore
 
 let makeConnectionString databaseUrl =
@@ -40,3 +41,11 @@ let dataContext (connectionString: string): GetDataContext =
   optionsBuilder.UseNpgsql(connectionString) |> ignore
   let options = optionsBuilder.Options
   fun _ -> new AppDbContext(options)
+
+let saveChangesAsync (dbContext: AppDbContext) =
+  dbContext.SaveChangesAsync()
+    |> Async.AwaitTask
+    |> Async.map ignore
+    |> Async.Catch
+    |> Async.map ofChoice
+    |> AR
