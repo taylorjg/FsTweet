@@ -9,11 +9,12 @@ let makeConnectionString databaseUrl =
   let username = userInfoBits.[0]
   let password = userInfoBits.[1]
   sprintf
-    "Server=%s;Port=%d;User Id=%s;Password=%s;Database=FsTweet;"
+    "Server=%s;Port=%d;User Id=%s;Password=%s;Database=%s;"
     uri.Host
     uri.Port
     username
     password
+    (uri.AbsolutePath.Substring 1)
 
 type [<CLIMutable>] User = {
   Id: int
