@@ -152,20 +152,25 @@ module Persistence =
   open Domain
   open Npgsql
 
-  let private mapException (ex: System.Exception) =
+  let private (|UniqueViolation|_|) constraintName (ex: System.Exception) =
     match ex with
     | :? System.AggregateException as agEx ->
+      // EF Core seems to wrap the PostgresException inside a DbUpdateException
       let ie = agEx.Flatten().InnerException
-      let iie = agEx.Flatten().InnerException.InnerException
-      let firstEx = if iie <> null then iie else ie
-      match firstEx with
+      let iie = ie.InnerException
+      let innerException = if iie <> null then iie else ie
+      match innerException with
       | :? PostgresException as pgEx ->
-        match pgEx.ConstraintName, pgEx.SqlState with
-        | "IX_Users_Username", "23505" -> UsernameAlreadyExists
-        | "IX_Users_Email", "23505" -> EmailAlreadyExists
-        | _ -> Error pgEx
-      | _ -> Error agEx
-    | _ -> Error ex
+        match pgEx.ConstraintName = constraintName && pgEx.SqlState = "23505" with
+        | true -> Some()
+        | _ -> None
+      | _ -> None
+    | _ -> None
+
+  let private mapException = function
+    | UniqueViolation "IX_Users_Username" _ -> UsernameAlreadyExists
+    | UniqueViolation "IX_Users_Email" _ -> EmailAlreadyExists
+    | ex -> Error ex
   
   let createUser (getDataContext: GetDataContext) (createUserRequest: CreateUserRequest) = asyncTrial {
     let dbContext = getDataContext ()
