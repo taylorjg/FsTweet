@@ -100,14 +100,14 @@ module Domain =
 
   type CreateUser = CreateUserRequest -> AsyncResult<UserId, CreateUserError>
 
-  type SendSignupEmailError =
-    SendSignupEmailError of System.Exception
+  type SendEmailError =
+    SendEmailError of System.Exception
 
-  type SendSignupEmail = SendSignupEmailRequest -> AsyncResult<unit, SendSignupEmailError>
+  type SendSignupEmail = SendSignupEmailRequest -> AsyncResult<unit, SendEmailError>
 
   type SignupUserError =
   | CreateUserError of CreateUserError
-  | SendSignupEmailError of SendSignupEmailError
+  | SendSignupEmailError of SendEmailError
 
   type SignupUser =
     CreateUser ->
@@ -191,10 +191,20 @@ module Persistence =
 module Email =
   open Chessie.ErrorHandling
   open Domain
+  open Email
 
-  let sendSignupEmail sendSignupEmailRequest = asyncTrial {
+  let sendSignupEmail sendEmail sendSignupEmailRequest = asyncTrial {
+    let placeHolders =
+      Map.empty
+        .Add("username", sendSignupEmailRequest.Username.Value)
+        .Add("verificationCode", sendSignupEmailRequest.VerificationCode.Value)
+    let templatedEmail = {
+      To = sendSignupEmailRequest.EmailAddress.Value
+      TemplateId = int64(7909690)
+      PlaceHolders = placeHolders
+    }      
+    do! sendEmail templatedEmail |> mapAsyncFailure SendEmailError
     printfn "Email sent: %A" sendSignupEmailRequest
-    return ()
   }
 
 module Suave =
@@ -277,9 +287,9 @@ module Suave =
       return! page signupTemplatePath viewModel ctx
   }
 
-  let webPart getDataContext =
+  let webPart getDataContext sendEmail =
     let createUser = Persistence.createUser getDataContext
-    let sendSignupEmail = Email.sendSignupEmail
+    let sendSignupEmail = Email.sendSignupEmail sendEmail
     let signupUser = Domain.signupUser createUser sendSignupEmail
     choose [
       path "/signup" >=>

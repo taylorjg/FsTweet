@@ -4,6 +4,7 @@ nuget BCrypt.Net-Next
 nuget Chessie
 nuget DotLiquid
 nuget FAKE
+nuget Postmark
 nuget suave
 nuget Suave.DotLiquid
 nuget Suave.Experimental

@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Db.fs" />
+    <Compile Include="Email.fs" />
     <Compile Include="UserSignup.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

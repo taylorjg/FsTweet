@@ -1,4 +1,5 @@
 ﻿open Database
+open Email
 open Suave
 open Suave.DotLiquid
 open Suave.Files
@@ -35,12 +36,17 @@ let databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
 let connectionString = makeConnectionString databaseUrl
 let getDataContext = dataContext connectionString
 
+let serverKey = Environment.GetEnvironmentVariable("FSTWEET_POSTMARK_SERVER_KEY")
+let senderEmailAddress = Environment.GetEnvironmentVariable("FSTWEET_SENDER_EMAIL_ADDRESS")
+
+let sendEmail = initSendEmail senderEmailAddress serverKey
+
 let app =
   choose [
     serveAssets
     serveFavIcon
     path "/" >=> page "guest/home.liquid" ""
-    UserSignup.Suave.webPart getDataContext
+    UserSignup.Suave.webPart getDataContext sendEmail
   ]
 
 [<EntryPoint>]
