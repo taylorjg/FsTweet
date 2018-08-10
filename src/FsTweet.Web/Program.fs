@@ -39,7 +39,12 @@ let getDataContext = dataContext connectionString
 let serverKey = Environment.GetEnvironmentVariable("FSTWEET_POSTMARK_SERVER_KEY")
 let senderEmailAddress = Environment.GetEnvironmentVariable("FSTWEET_SENDER_EMAIL_ADDRESS")
 
-let sendEmail = initSendEmail senderEmailAddress serverKey
+let env = Environment.GetEnvironmentVariable("FSTWEET_ENVIRONMENT")
+
+let sendEmail =
+  match env with
+  | "prod" -> initSendEmail senderEmailAddress serverKey
+  | _ -> consoleSendEmail
 
 let app =
   choose [

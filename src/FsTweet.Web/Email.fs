@@ -23,9 +23,10 @@ let private sendEmailViaPostmark senderEmailAddress (postmarkClient: PostmarkCli
   let msg =
     new TemplatedPostmarkMessage(
       From = senderEmailAddress,
-      To = templatedEmail.To,
+      To = senderEmailAddress, // templatedEmail.To,
       TemplateId = templatedEmail.TemplateId,
       TemplateModel = templatedEmail.PlaceHolders
+        .Add("realEmailAddress", templatedEmail.To)
     )
   postmarkClient.SendMessageAsync(msg)
   |> Async.AwaitTask
@@ -36,3 +37,7 @@ let private sendEmailViaPostmark senderEmailAddress (postmarkClient: PostmarkCli
 let initSendEmail senderEmailAddress serverKey =
   let postmarkClient = new PostmarkClient(serverKey)
   sendEmailViaPostmark senderEmailAddress postmarkClient
+
+let consoleSendEmail (templatedEmail: TemplatedEmail) = asyncTrial {
+  printfn "[consoleSendEmail] sending email %A" templatedEmail
+}
