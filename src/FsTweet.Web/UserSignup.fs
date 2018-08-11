@@ -1,8 +1,11 @@
 namespace UserSignup
 
+open Microsoft.EntityFrameworkCore
+open Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.Internal
 module Domain =
   open BCrypt.Net
   open Chessie.ErrorHandling
+  open Microsoft.EntityFrameworkCore
   open System.Security.Cryptography
 
   let base64URLEncoding bytes =
@@ -12,12 +15,33 @@ module Domain =
       .Replace('+', '-')
       .Replace('/', '_')
 
+  let mapFailureFirstItem f result =
+    let mapFirstItem xs = List.head xs |> f |> List.singleton
+    mapFailure mapFirstItem result
+
+  let mapAsyncFailure f asyncResult =
+    asyncResult
+      |> Async.ofAsyncResult
+      |> Async.map (mapFailureFirstItem f)
+      |> AR
+
+  let mapAsyncSuccess f asyncResult =
+    asyncResult
+      |> Async.ofAsyncResult
+      |> Async.map (lift f)
+      |> AR
+
   type Username = private Username of string with
     static member TryCreate (username: string) =
       match username with
       | null | "" -> fail "Username should not be empty"
       | x when x.Length > 12 -> fail "Username should not be more than 12 characters"
       | x -> x.Trim().ToLowerInvariant() |> Username |> ok
+    static member TryCreateAsync username =
+      Username.TryCreate username
+      |> mapFailureFirstItem System.Exception
+      |> Async.singleton
+      |> AR
     member this.Value =
       let (Username username) = this
       username
@@ -115,16 +139,6 @@ module Domain =
       SignupUserRequest ->
       AsyncResult<UserId, SignupUserError>
 
-  let mapFailureFirstItem f result =
-    let mapFirstItem xs = List.head xs |> f |> List.singleton
-    mapFailure mapFirstItem result
-
-  let mapAsyncFailure f asyncResult =
-    asyncResult
-      |> Async.ofAsyncResult
-      |> Async.map (mapFailureFirstItem f)
-      |> AR
-
   let signupUser
     (createUser: CreateUser)
     (sendSignupEmail: SendSignupEmail)
@@ -145,6 +159,8 @@ module Domain =
       do! sendSignupEmail sendSignupEmailRequest |> mapAsyncFailure SendSignupEmailError
       return userId
     }
+
+  type VerifyUser = string -> AsyncResult<Username option, System.Exception>  
 
 module Persistence =
   open Chessie.ErrorHandling
@@ -184,8 +200,37 @@ module Persistence =
     }
     dbContext.Users.Add(newUser) |> ignore
     do! saveChangesAsync dbContext |> mapAsyncFailure mapException
-    printfn "User created: %A" newUser
+    printfn "[createUser] user created: %A" newUser
     return newUser.Id |> UserId
+  }
+
+  let toOption = function
+    | Pass x -> Some x
+    | _ -> None
+
+  let verifyUser (getDataContext: GetDataContext) (verificationCode: string) = asyncTrial {
+    let dbContext = getDataContext ()
+    let queryable =
+      query {
+        for user in dbContext.Users do
+          where (user.EmailVerificationCode = verificationCode)
+          select user
+      }
+    let! userToVerify =
+      EntityFrameworkQueryableExtensions.ToListAsync(queryable)
+      |> Async.AwaitTask
+      |> Async.Catch
+      |> Async.map ofChoice
+      |> AR
+      |> mapAsyncSuccess (fun users -> List.ofSeq(users) |> List.tryHead)
+    match userToVerify with
+    | None -> return None
+    | Some user ->
+      let user' = { user with EmailVerificationCode = ""; IsEmailVerified = true }
+      dbContext.Entry(user).CurrentValues.SetValues(user')
+      do! saveChangesAsync dbContext
+      let! username = Username.TryCreateAsync user.Username
+      return Some username
   }
 
 module Email =
@@ -204,7 +249,7 @@ module Email =
       PlaceHolders = placeHolders
     }      
     do! sendEmail templatedEmail |> mapAsyncFailure SendEmailError
-    printfn "Email sent: %A" sendSignupEmailRequest
+    printfn "[sendSignupEmail] email sent: %A" sendSignupEmailRequest
   }
 
 module Suave =
@@ -218,6 +263,9 @@ module Suave =
 
   let signupTemplatePath = "user/signup.liquid"
   let signupSuccessTemplatePath = "user/signup_success.liquid"
+  let verificationSuccessPath = "user/verification_success.liquid"
+  let notFoundPath = "not_found.liquid"
+  let serverErrorPath = "server_error.liquid"
 
   type UserSignupViewModel = {
     Username: string
@@ -244,12 +292,12 @@ module Suave =
     let viewModel = { viewModel with Error = Some "Username already exists" }
     page signupTemplatePath viewModel
   | Error ex ->
-    printfn "server error: %A" ex
+    printfn "[handleCreateUserError] server error: %A" ex
     let viewModel = { viewModel with Error = Some "Something went wrong" }
     page signupTemplatePath viewModel
 
   let handleSendSignupEmailError viewModel err =
-    printfn "Error while sending signup email: %A" err
+    printfn "[handleSendSignupEmailError] error while sending signup email: %A" err
     let msg = "Something went wrong"
     let viewModel = { viewModel with Error = Some msg }
     page signupTemplatePath viewModel
@@ -287,10 +335,35 @@ module Suave =
       return! page signupTemplatePath viewModel ctx
   }
 
+  let onVerificationSuccess (username, _) =
+    match username with
+    | Some (username: Username) ->
+      page verificationSuccessPath username.Value
+    | _ ->
+      printfn "[onVerificationSuccess] invalid verification code"
+      page notFoundPath "Invalid verification code"
+
+  let onVerificationFailure exs =
+    let ex = List.head exs
+    printfn "[onVerificationFailure] error while verifying email: %A" ex
+    page serverErrorPath "Error while verifying email"
+
+  let handleVerifyUserAsyncResult asyncResult =
+    asyncResult
+    |> Async.ofAsyncResult
+    |> Async.map (either onVerificationSuccess onVerificationFailure)  
+
+  let handleSignupVerify (verifyUser: VerifyUser) verificationCode ctx = async {
+    let asyncResult = verifyUser verificationCode
+    let! webpart = handleVerifyUserAsyncResult asyncResult
+    return! webpart ctx
+  }
+
   let webPart getDataContext sendEmail =
     let createUser = Persistence.createUser getDataContext
     let sendSignupEmail = Email.sendSignupEmail sendEmail
     let signupUser = Domain.signupUser createUser sendSignupEmail
+    let verifyUser = Persistence.verifyUser getDataContext
     choose [
       path "/signup" >=>
         choose [
@@ -298,4 +371,5 @@ module Suave =
           POST >=> handleUserSignup signupUser
         ]
       pathScan "/signup/success/%s" (page signupSuccessTemplatePath)      
+      pathScan "/signup/verify/%s" (handleSignupVerify verifyUser)
     ]

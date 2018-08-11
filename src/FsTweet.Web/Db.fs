@@ -49,3 +49,9 @@ let saveChangesAsync (dbContext: AppDbContext) =
     |> Async.Catch
     |> Async.map ofChoice
     |> AR
+
+let toAsyncResult queryable =
+  queryable
+  |> Async.Catch
+  |> Async.map ofChoice
+  |> AR

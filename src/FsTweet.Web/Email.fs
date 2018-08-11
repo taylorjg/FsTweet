@@ -28,6 +28,7 @@ let private sendEmailViaPostmark senderEmailAddress (postmarkClient: PostmarkCli
       TemplateModel = templatedEmail.PlaceHolders
         .Add("realEmailAddress", templatedEmail.To)
     )
+  printfn "[sendEmailViaPostmark] sending email: %A" templatedEmail
   postmarkClient.SendMessageAsync(msg)
   |> Async.AwaitTask
   |> Async.Catch
@@ -39,5 +40,5 @@ let initSendEmail senderEmailAddress serverKey =
   sendEmailViaPostmark senderEmailAddress postmarkClient
 
 let consoleSendEmail (templatedEmail: TemplatedEmail) = asyncTrial {
-  printfn "[consoleSendEmail] sending email %A" templatedEmail
+  printfn "[consoleSendEmail] sending email: %A" templatedEmail
 }
