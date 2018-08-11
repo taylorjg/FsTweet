@@ -222,7 +222,7 @@ module Persistence =
       |> Async.Catch
       |> Async.map ofChoice
       |> AR
-      |> mapAsyncSuccess (fun users -> List.ofSeq(users) |> List.tryHead)
+      |> mapAsyncSuccess (List.ofSeq >> List.tryHead)
     match userToVerify with
     | None -> return None
     | Some user ->
