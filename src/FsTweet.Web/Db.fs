@@ -28,6 +28,7 @@ type [<CLIMutable>] User = {
 
 type AppDbContext =
   inherit DbContext
+  
   new(options: DbContextOptions<AppDbContext>) = { inherit DbContext(options) }
   [<DefaultValue>] val mutable users: DbSet<User>
   member this.Users

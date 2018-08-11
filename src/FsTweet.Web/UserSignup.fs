@@ -1,11 +1,9 @@
 namespace UserSignup
 
-open Microsoft.EntityFrameworkCore
-open Microsoft.EntityFrameworkCore.Query.ExpressionTranslators.Internal
 module Domain =
   open BCrypt.Net
+  open Chessie
   open Chessie.ErrorHandling
-  open Microsoft.EntityFrameworkCore
   open System.Security.Cryptography
 
   let base64URLEncoding bytes =
@@ -14,22 +12,6 @@ module Domain =
       .TrimEnd([|'='|])
       .Replace('+', '-')
       .Replace('/', '_')
-
-  let mapFailureFirstItem f result =
-    let mapFirstItem xs = List.head xs |> f |> List.singleton
-    mapFailure mapFirstItem result
-
-  let mapAsyncFailure f asyncResult =
-    asyncResult
-      |> Async.ofAsyncResult
-      |> Async.map (mapFailureFirstItem f)
-      |> AR
-
-  let mapAsyncSuccess f asyncResult =
-    asyncResult
-      |> Async.ofAsyncResult
-      |> Async.map (lift f)
-      |> AR
 
   type Username = private Username of string with
     static member TryCreate (username: string) =
@@ -85,7 +67,7 @@ module Domain =
       let (EmailAddress emailAddress) = this
       emailAddress
 
-  type SignupUserRequest = {
+  type UserSignupRequest = {
     Username: Username
     Password: Password
     EmailAddress: EmailAddress
@@ -129,31 +111,31 @@ module Domain =
 
   type SendSignupEmail = SendSignupEmailRequest -> AsyncResult<unit, SendEmailError>
 
-  type SignupUserError =
+  type UserSignupError =
   | CreateUserError of CreateUserError
   | SendSignupEmailError of SendEmailError
 
-  type SignupUser =
+  type UserSignup =
     CreateUser ->
       SendSignupEmail ->
-      SignupUserRequest ->
-      AsyncResult<UserId, SignupUserError>
+      UserSignupRequest ->
+      AsyncResult<UserId, UserSignupError>
 
-  let signupUser
+  let userSignup
     (createUser: CreateUser)
     (sendSignupEmail: SendSignupEmail)
-    (signupUserRequest: SignupUserRequest) = asyncTrial {
+    (userSignupRequest: UserSignupRequest) = asyncTrial {
       let verificationCode = VerificationCode.Create()
       let createUserRequest = {
-        Username = signupUserRequest.Username
-        PasswordHash = PasswordHash.Create signupUserRequest.Password
-        EmailAddress = signupUserRequest.EmailAddress
+        Username = userSignupRequest.Username
+        PasswordHash = PasswordHash.Create userSignupRequest.Password
+        EmailAddress = userSignupRequest.EmailAddress
         VerificationCode = verificationCode
       }
       let! userId = createUser createUserRequest |> mapAsyncFailure CreateUserError
       let sendSignupEmailRequest = {
-        Username = signupUserRequest.Username
-        EmailAddress = signupUserRequest.EmailAddress
+        Username = userSignupRequest.Username
+        EmailAddress = userSignupRequest.EmailAddress
         VerificationCode = verificationCode
       }
       do! sendSignupEmail sendSignupEmailRequest |> mapAsyncFailure SendSignupEmailError
@@ -163,9 +145,11 @@ module Domain =
   type VerifyUser = string -> AsyncResult<Username option, System.Exception>  
 
 module Persistence =
+  open Chessie
   open Chessie.ErrorHandling
   open Database
   open Domain
+  open Microsoft.EntityFrameworkCore
   open Npgsql
 
   let private (|UniqueViolation|_|) constraintName (ex: System.Exception) =
@@ -234,6 +218,7 @@ module Persistence =
   }
 
 module Email =
+  open Chessie
   open Chessie.ErrorHandling
   open Domain
   open Email
@@ -253,6 +238,7 @@ module Email =
   }
 
 module Suave =
+  open Chessie
   open Chessie.ErrorHandling
   open Domain
   open Suave
@@ -281,7 +267,7 @@ module Suave =
     Error = None
   }
 
-  let handleUserSignupSuccess viewModel _ =
+  let onUserSignupSuccess viewModel _ =
     sprintf "/signup/success/%s" viewModel.Username |> Redirection.FOUND
 
   let handleCreateUserError viewModel = function
@@ -302,73 +288,83 @@ module Suave =
     let viewModel = { viewModel with Error = Some msg }
     page signupTemplatePath viewModel
 
-  let handleSignupUserError viewModel errs =
-    match List.head errs with
+  let onUserSignupError viewModel err =
+    match err with
     | CreateUserError err -> handleCreateUserError viewModel err
     | SendSignupEmailError err -> handleSendSignupEmailError viewModel err
 
-  let handleSignupUserResult viewModel result =
-    either
-      (handleUserSignupSuccess viewModel)
-      (handleSignupUserError viewModel) result
+  let handleUserSignupResult viewModel result =
+    Chessie.either
+      (onUserSignupSuccess viewModel)
+      (onUserSignupError viewModel)
+      result
       
-  let handleSignupUserAsyncResult viewModel asyncResult =
+  let handleUserSignupAsyncResult viewModel asyncResult =
     asyncResult
     |> Async.ofAsyncResult
-    |> Async.map (handleSignupUserResult viewModel)
+    |> Async.map (handleUserSignupResult viewModel)
 
-  let handleUserSignup signupUser ctx = async {
+  let handleUserSignup userSignup ctx = async {
     match bindEmptyForm ctx.request with
-    | Choice1Of2 (vm: UserSignupViewModel) ->
-      let result = SignupUserRequest.TryCreate (vm.Username, vm.Password, vm.Email)
+    | Choice1Of2 (viewModel: UserSignupViewModel) ->
+      let result =
+        UserSignupRequest.TryCreate(
+          viewModel.Username,
+          viewModel.Password,
+          viewModel.Email)
       match result with
-      | Ok (signupUserRequest, _) ->
-        let asyncResult = signupUser signupUserRequest
-        let! webpart = handleSignupUserAsyncResult vm asyncResult
+      | Ok (userSignupRequest, _) ->
+        let asyncResult = userSignup userSignupRequest
+        let! webpart = handleUserSignupAsyncResult viewModel asyncResult
         return! webpart ctx
-      | Bad msgs ->
-        let msg = List.head msgs
-        let viewModel = { vm with Error = Some msg }
-        return! page signupTemplatePath viewModel ctx
-    | Choice2Of2 msg ->
-      let viewModel = { emptyUserSignupViewModel with Error = Some msg }
-      return! page signupTemplatePath viewModel ctx
+      | Bad errors ->
+        let error = List.head errors
+        let viewModel' = { viewModel with Error = Some error }
+        return! page signupTemplatePath viewModel' ctx
+    | Choice2Of2 error ->
+      let viewModel' = { emptyUserSignupViewModel with Error = Some error }
+      return! page signupTemplatePath viewModel' ctx
   }
 
-  let onVerificationSuccess (username, _) =
+  let onVerificationSuccess verificationCode username =
     match username with
     | Some (username: Username) ->
       page verificationSuccessPath username.Value
     | _ ->
-      printfn "[onVerificationSuccess] invalid verification code"
+      printfn "[onVerificationSuccess] invalid verification code: %s" verificationCode
       page notFoundPath "Invalid verification code"
 
-  let onVerificationFailure exs =
-    let ex = List.head exs
-    printfn "[onVerificationFailure] error while verifying email: %A" ex
+  let onVerificationFailure verificationCode (ex: System.Exception) =
+    printfn
+      "[onVerificationFailure] error while verifying email for verification code %s: %A"
+      verificationCode
+      ex
     page serverErrorPath "Error while verifying email"
 
-  let handleVerifyUserAsyncResult asyncResult =
+  let handleVerifyUserAsyncResult verificationCode asyncResult =
     asyncResult
     |> Async.ofAsyncResult
-    |> Async.map (either onVerificationSuccess onVerificationFailure)  
+    |> Async.map
+      (Chessie.either
+        (onVerificationSuccess verificationCode)
+        (onVerificationFailure verificationCode))
 
   let handleSignupVerify (verifyUser: VerifyUser) verificationCode ctx = async {
     let asyncResult = verifyUser verificationCode
-    let! webpart = handleVerifyUserAsyncResult asyncResult
+    let! webpart = handleVerifyUserAsyncResult verificationCode asyncResult
     return! webpart ctx
   }
 
   let webPart getDataContext sendEmail =
     let createUser = Persistence.createUser getDataContext
     let sendSignupEmail = Email.sendSignupEmail sendEmail
-    let signupUser = Domain.signupUser createUser sendSignupEmail
+    let userSignup = Domain.userSignup createUser sendSignupEmail
     let verifyUser = Persistence.verifyUser getDataContext
     choose [
       path "/signup" >=>
         choose [
           GET >=> page signupTemplatePath emptyUserSignupViewModel
-          POST >=> handleUserSignup signupUser
+          POST >=> handleUserSignup userSignup
         ]
       pathScan "/signup/success/%s" (page signupSuccessTemplatePath)      
       pathScan "/signup/verify/%s" (handleSignupVerify verifyUser)
