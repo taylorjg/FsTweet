@@ -2,21 +2,11 @@ module Chessie
 
 open Chessie.ErrorHandling
 
-let mapFailureFirstItem f result =
-  let mapFirstItem xs = List.head xs |> f |> List.singleton
+let mapFirstFailure f result =
+  let mapFirstItem = function
+    | msg :: _ -> msg |> f |> List.singleton
+    | [] -> failwith "Chessie.mapFirstFailure called with an empty list"
   mapFailure mapFirstItem result
-
-let mapAsyncFailure f asyncResult =
-  asyncResult
-    |> Async.ofAsyncResult
-    |> Async.map (mapFailureFirstItem f)
-    |> AR
-
-let mapAsyncSuccess f asyncResult =
-  asyncResult
-    |> Async.ofAsyncResult
-    |> Async.map (lift f)
-    |> AR
 
 let private onSuccessAdapter f (x, _) = f x
 
@@ -26,3 +16,27 @@ let private onFailureAdapter f = function
 
 let either onSuccess onFailure =
   either (onSuccessAdapter onSuccess) (onFailureAdapter onFailure)
+
+let (|Success|Failure|) = function
+  | Ok (x, _) -> Success x
+  | Bad (msgs) -> Failure (List.head msgs)
+
+[<RequireQualifiedAccess>]
+module AR =
+
+  let mapFailure f asyncResult =
+    asyncResult
+    |> Async.ofAsyncResult
+    |> Async.map (mapFirstFailure f)
+    |> AR
+  let mapSuccess f asyncResult =
+    asyncResult
+    |> Async.ofAsyncResult
+    |> Async.map (lift f)
+    |> AR
+
+  let catch asyncComputation =
+    asyncComputation
+    |> Async.Catch
+    |> Async.map ofChoice
+    |> AR

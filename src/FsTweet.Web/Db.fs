@@ -1,5 +1,6 @@
 module Database
 
+open Chessie
 open Chessie.ErrorHandling
 open Microsoft.EntityFrameworkCore
 
@@ -45,14 +46,6 @@ let dataContext (connectionString: string): GetDataContext =
 
 let saveChangesAsync (dbContext: AppDbContext) =
   dbContext.SaveChangesAsync()
-    |> Async.AwaitTask
-    |> Async.map ignore
-    |> Async.Catch
-    |> Async.map ofChoice
-    |> AR
-
-let toAsyncResult queryable =
-  queryable
-  |> Async.Catch
-  |> Async.map ofChoice
-  |> AR
+  |> Async.AwaitTask
+  |> Async.map ignore
+  |> AR.catch

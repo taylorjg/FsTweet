@@ -21,7 +21,7 @@ module Domain =
       | x -> x.Trim().ToLowerInvariant() |> Username |> ok
     static member TryCreateAsync username =
       Username.TryCreate username
-      |> mapFailureFirstItem System.Exception
+      |> mapFirstFailure System.Exception
       |> Async.singleton
       |> AR
     member this.Value =
@@ -132,13 +132,13 @@ module Domain =
         EmailAddress = userSignupRequest.EmailAddress
         VerificationCode = verificationCode
       }
-      let! userId = createUser createUserRequest |> mapAsyncFailure CreateUserError
+      let! userId = createUser createUserRequest |> AR.mapFailure CreateUserError
       let sendSignupEmailRequest = {
         Username = userSignupRequest.Username
         EmailAddress = userSignupRequest.EmailAddress
         VerificationCode = verificationCode
       }
-      do! sendSignupEmail sendSignupEmailRequest |> mapAsyncFailure SendSignupEmailError
+      do! sendSignupEmail sendSignupEmailRequest |> AR.mapFailure SendSignupEmailError
       return userId
     }
 
@@ -183,7 +183,7 @@ module Persistence =
       IsEmailVerified = false
     }
     dbContext.Users.Add(newUser) |> ignore
-    do! saveChangesAsync dbContext |> mapAsyncFailure mapException
+    do! saveChangesAsync dbContext |> AR.mapFailure mapException
     printfn "[createUser] user created: %A" newUser
     return newUser.Id |> UserId
   }
@@ -203,10 +203,8 @@ module Persistence =
     let! userToVerify =
       EntityFrameworkQueryableExtensions.ToListAsync(queryable)
       |> Async.AwaitTask
-      |> Async.Catch
-      |> Async.map ofChoice
-      |> AR
-      |> mapAsyncSuccess (List.ofSeq >> List.tryHead)
+      |> AR.catch
+      |> AR.mapSuccess (List.ofSeq >> List.tryHead)
     match userToVerify with
     | None -> return None
     | Some user ->
@@ -233,11 +231,12 @@ module Email =
       TemplateId = int64(7909690)
       PlaceHolders = placeHolders
     }      
-    do! sendEmail templatedEmail |> mapAsyncFailure SendEmailError
+    do! sendEmail templatedEmail |> AR.mapFailure SendEmailError
     printfn "[sendSignupEmail] email sent: %A" sendSignupEmailRequest
   }
 
 module Suave =
+  open Chessie
   open Chessie.ErrorHandling
   open Domain
   open Suave
@@ -312,12 +311,11 @@ module Suave =
           viewModel.Password,
           viewModel.Email)
       match result with
-      | Ok (userSignupRequest, _) ->
+      | Success userSignupRequest ->
         let asyncResult = userSignup userSignupRequest
         let! webpart = handleUserSignupAsyncResult viewModel asyncResult
         return! webpart ctx
-      | Bad errors ->
-        let error = List.head errors
+      | Failure error ->
         let viewModel' = { viewModel with Error = Some error }
         return! page signupTemplatePath viewModel' ctx
     | Choice2Of2 error ->
