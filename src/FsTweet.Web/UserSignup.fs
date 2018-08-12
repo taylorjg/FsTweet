@@ -173,7 +173,7 @@ module Persistence =
     | ex -> Error ex
   
   let createUser (getDataContext: GetDataContext) (createUserRequest: CreateUserRequest) = asyncTrial {
-    let dbContext = getDataContext ()
+    use dbContext = getDataContext ()
     let newUser: User = {
       Id = 0
       Username = createUserRequest.Username.Value
@@ -193,7 +193,7 @@ module Persistence =
     | _ -> None
 
   let verifyUser (getDataContext: GetDataContext) (verificationCode: string) = asyncTrial {
-    let dbContext = getDataContext ()
+    use dbContext = getDataContext ()
     let queryable =
       query {
         for user in dbContext.Users do
@@ -238,7 +238,6 @@ module Email =
   }
 
 module Suave =
-  open Chessie
   open Chessie.ErrorHandling
   open Domain
   open Suave
