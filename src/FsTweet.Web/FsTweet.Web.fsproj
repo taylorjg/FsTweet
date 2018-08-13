@@ -10,6 +10,7 @@
     <Compile Include="Email.fs" />
     <Compile Include="User.fs" />
     <Compile Include="UserSignup.fs" />
+    <Compile Include="Auth.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
