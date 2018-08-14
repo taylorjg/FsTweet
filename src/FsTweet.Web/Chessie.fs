@@ -40,3 +40,9 @@ module AR =
     |> Async.Catch
     |> Async.map ofChoice
     |> AR
+
+  let fail msg =
+    msg
+    |> fail
+    |> Async.singleton
+    |> AR

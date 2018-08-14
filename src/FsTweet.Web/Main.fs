@@ -52,7 +52,7 @@ let app =
     serveFavIcon
     path "/" >=> page "guest/home.liquid" ""
     UserSignup.Suave.webPart getDataContext sendEmail
-    Auth.Suave.webpart ()
+    Auth.Suave.webpart getDataContext
   ]
 
 [<EntryPoint>]

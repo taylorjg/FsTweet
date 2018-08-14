@@ -110,7 +110,7 @@ module Persistence =
   
   let createUser (getDataContext: GetDataContext) (createUserRequest: CreateUserRequest) = asyncTrial {
     use dbContext = getDataContext ()
-    let newUser: User = {
+    let newUser: Database.User = {
       Id = 0
       Username = createUserRequest.Username.Value
       PasswordHash = createUserRequest.PasswordHash.Value

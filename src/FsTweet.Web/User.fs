@@ -42,6 +42,14 @@ type Password = private Password of string with
 type PasswordHash = private PasswordHash of string with
   static member Create (password: Password) =
     BCrypt.HashPassword(password.Value) |> PasswordHash
+  static member TryCreate (passwordHash: string) =
+    try
+      BCrypt.InterrogateHash passwordHash |> ignore
+      PasswordHash passwordHash |> ok
+    with
+    | _ -> fail "Invalid password hash"
+  static member VerifyPassword (password: Password) (passwordHash: PasswordHash) =
+    BCrypt.Verify(password.Value, passwordHash.Value)  
   member this.Value =
     let (PasswordHash passwordHash) = this
     passwordHash
@@ -67,3 +75,65 @@ type EmailAddress = private EmailAddress of string with
   member this.Value =
     let (EmailAddress emailAddress) = this
     emailAddress
+
+type UserEmailAddress =
+| Verified of EmailAddress
+| NotVerified of EmailAddress
+with
+  member this.Value =
+    match this with
+    | Verified e | NotVerified e -> e.Value
+
+type User = {
+  UserId: UserId
+  Username: Username
+  UserEmailAddress: UserEmailAddress
+  PasswordHash: PasswordHash
+}
+
+type FindUser = Username -> AsyncResult<User option, System.Exception>
+
+module Persistence =
+  open Database
+  open Microsoft.EntityFrameworkCore
+
+  let private mapDbUser (dbUser: Database.User) =
+    let user = trial {
+      let! username = Username.TryCreate dbUser.Username
+      let! passwordHash = PasswordHash.TryCreate dbUser.PasswordHash
+      let! email = EmailAddress.TryCreate dbUser.Email
+      let userEmailAddress =
+        match dbUser.IsEmailVerified with
+        | true -> Verified email
+        | false -> NotVerified email
+      return {
+        UserId = UserId dbUser.Id
+        Username = username
+        PasswordHash = passwordHash
+        UserEmailAddress = userEmailAddress
+      }      
+    }
+    user
+    |> mapFirstFailure System.Exception
+    |> Async.singleton
+    |> AR
+
+  let findUser (getDataContext: GetDataContext) (username: Username) = asyncTrial {
+    use dbContext = getDataContext ()
+    let queryable =
+      query {
+        for user in dbContext.Users do
+          where (user.Username = username.Value)
+          select user
+      }
+    let! userToFind =
+      EntityFrameworkQueryableExtensions.ToListAsync(queryable)
+      |> Async.AwaitTask
+      |> AR.catch
+      |> AR.mapSuccess (List.ofSeq >> List.tryHead)
+    match userToFind with
+    | None -> return None
+    | Some dbUser ->
+      let! user = mapDbUser dbUser
+      return Some user
+  }
