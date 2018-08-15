@@ -182,11 +182,11 @@ module Suave =
   open Suave.Operators
   open User
 
-  let signupTemplatePath = "user/signup.liquid"
-  let signupSuccessTemplatePath = "user/signup_success.liquid"
-  let verificationSuccessPath = "user/verification_success.liquid"
-  let notFoundPath = "not_found.liquid"
-  let serverErrorPath = "server_error.liquid"
+  let private signupTemplatePath = "user/signup.liquid"
+  let private signupSuccessTemplatePath = "user/signup_success.liquid"
+  let private verificationSuccessPath = "user/verification_success.liquid"
+  let private notFoundPath = "not_found.liquid"
+  let private serverErrorPath = "server_error.liquid"
 
   type UserSignupViewModel = {
     Username: string
@@ -195,17 +195,17 @@ module Suave =
     Error: string option
   }
 
-  let emptyUserSignupViewModel = {
+  let private emptyUserSignupViewModel = {
     Username = ""
     Email = ""
     Password = ""
     Error = None
   }
 
-  let onUserSignupSuccess viewModel _ =
+  let private onUserSignupSuccess viewModel _ =
     sprintf "/signup/success/%s" viewModel.Username |> Redirection.FOUND
 
-  let handleCreateUserError viewModel = function
+  let private handleCreateUserError viewModel = function
   | EmailAlreadyExists ->
     let viewModel = { viewModel with Error = Some "EmailAddress already exists" }
     page signupTemplatePath viewModel
@@ -217,29 +217,29 @@ module Suave =
     let viewModel = { viewModel with Error = Some "Something went wrong" }
     page signupTemplatePath viewModel
 
-  let handleSendSignupEmailError viewModel err =
+  let private handleSendSignupEmailError viewModel err =
     printfn "[handleSendSignupEmailError] error while sending signup email: %A" err
     let msg = "Something went wrong"
     let viewModel = { viewModel with Error = Some msg }
     page signupTemplatePath viewModel
 
-  let onUserSignupError viewModel err =
+  let private onUserSignupError viewModel err =
     match err with
     | CreateUserError err -> handleCreateUserError viewModel err
     | SendSignupEmailError err -> handleSendSignupEmailError viewModel err
 
-  let handleUserSignupResult viewModel result =
+  let private handleUserSignupResult viewModel result =
     Chessie.either
       (onUserSignupSuccess viewModel)
       (onUserSignupError viewModel)
       result
       
-  let handleUserSignupAsyncResult viewModel asyncResult =
+  let private handleUserSignupAsyncResult viewModel asyncResult =
     asyncResult
     |> Async.ofAsyncResult
     |> Async.map (handleUserSignupResult viewModel)
 
-  let handleUserSignup userSignup ctx = async {
+  let private handleUserSignup userSignup ctx = async {
     match bindEmptyForm ctx.request with
     | Choice1Of2 (viewModel: UserSignupViewModel) ->
       let result =
@@ -260,7 +260,7 @@ module Suave =
       return! page signupTemplatePath viewModel' ctx
   }
 
-  let onVerificationSuccess verificationCode username =
+  let private onVerificationSuccess verificationCode username =
     match username with
     | Some (username: Username) ->
       page verificationSuccessPath username.Value
@@ -268,14 +268,14 @@ module Suave =
       printfn "[onVerificationSuccess] invalid verification code: %s" verificationCode
       page notFoundPath "Invalid verification code"
 
-  let onVerificationFailure verificationCode (ex: System.Exception) =
+  let private onVerificationFailure verificationCode (ex: System.Exception) =
     printfn
       "[onVerificationFailure] error while verifying email for verification code %s: %A"
       verificationCode
       ex
     page serverErrorPath "Error while verifying email"
 
-  let handleVerifyUserAsyncResult verificationCode asyncResult =
+  let private handleVerifyUserAsyncResult verificationCode asyncResult =
     asyncResult
     |> Async.ofAsyncResult
     |> Async.map
@@ -283,7 +283,7 @@ module Suave =
         (onVerificationSuccess verificationCode)
         (onVerificationFailure verificationCode))
 
-  let handleSignupVerify (verifyUser: VerifyUser) verificationCode ctx = async {
+  let private handleSignupVerify (verifyUser: VerifyUser) verificationCode ctx = async {
     let asyncResult = verifyUser verificationCode
     let! webpart = handleVerifyUserAsyncResult verificationCode asyncResult
     return! webpart ctx
