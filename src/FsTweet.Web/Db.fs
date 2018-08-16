@@ -27,6 +27,13 @@ type [<CLIMutable>] User = {
   IsEmailVerified: bool
 }
 
+type [<CLIMutable>] Tweet = {
+  Id: System.Guid
+  Post: string
+  UserId: int
+  TweetedAt: System.DateTime
+}
+
 type AppDbContext =
   inherit DbContext
   
@@ -35,6 +42,11 @@ type AppDbContext =
   member this.Users
     with get() = this.users
     and set users = this.users <- users
+
+  [<DefaultValue>] val mutable tweets: DbSet<Tweet>
+  member this.Tweets
+    with get() = this.tweets
+    and set tweets = this.tweets <- tweets
 
 type GetDataContext = unit -> AppDbContext
 

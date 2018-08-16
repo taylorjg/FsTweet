@@ -5,6 +5,7 @@ Suave.Experimental
 Chessie
 BCrypt.Net-Next
 Postmark
+Chiron
 group Database
 FluentMigrator
 Npgsql.EntityFrameworkCore.PostgreSQL

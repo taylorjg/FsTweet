@@ -100,11 +100,17 @@ module Suave =
   let private userSession fFailure fSuccess: WebPart =
     statefulForSession >=> context (initUserSession fFailure fSuccess)
 
-  let requiresAuth fSuccess =
+  let private onAuthenticate fSuccess fFailure =
     authenticate CookieLife.Session false
-      (fun _ -> Choice2Of2 redirectToLoginPage)
-      (fun _ -> Choice2Of2 redirectToLoginPage)
-      (userSession redirectToLoginPage fSuccess)
+      (fun _ -> Choice2Of2 fFailure)
+      (fun _ -> Choice2Of2 fFailure)
+      (userSession fFailure fSuccess)
+
+  let requiresAuth fSuccess =
+    onAuthenticate fSuccess redirectToLoginPage
+
+  let requiresAuth2 fSuccess =
+    onAuthenticate fSuccess JSON.unauthorized
 
   let private optionalUserSession (fSuccess: User option -> WebPart): WebPart =
     statefulForSession >=> context (retrieveUser >> fSuccess)
@@ -133,22 +139,15 @@ module Suave =
       >=> createUserSession user
       >=> Redirection.FOUND "/wall"
 
-  let private handleLoginResult viewModel result =
-    Chessie.either onLoginSuccess (onLoginFailure viewModel) result  
-
-  let private handleLoginAsyncResult viewModel asyncResult =
-    asyncResult
-    |> Async.ofAsyncResult
-    |> Async.map (handleLoginResult viewModel)
-
   let private handleUserLogin findUser ctx = async {
     match bindEmptyForm ctx.request with
     | Choice1Of2 (viewModel: LoginViewModel) ->
       let result = LoginRequest.TryCreate (viewModel.Username, viewModel.Password)
       match result with
       | Success loginRequest ->
-        let asyncResult = login findUser loginRequest
-        let! webpart = handleLoginAsyncResult viewModel asyncResult
+        let! webpart =
+          login findUser loginRequest
+          |> AR.either onLoginSuccess (onLoginFailure viewModel)
         return! webpart ctx
       | Failure error ->
         let viewModel' = { viewModel with Error = Some error }

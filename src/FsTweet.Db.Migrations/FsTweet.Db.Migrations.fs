@@ -3,7 +3,7 @@ namespace FsTweet.Db.Migrations
 open FluentMigrator
 open System.Xml
 
-[<Migration(201808011935L, "Creating User Table")>]
+[<Migration(201808011935L, "Creating Users Table")>]
 type CreateUserTable() =
   inherit Migration()
   override this.Up() =
@@ -17,3 +17,16 @@ type CreateUserTable() =
     |> ignore
   override this.Down() =
     base.Delete.Table("Users") |> ignore
+
+[<Migration(201808180721L, "Creating Tweets Table")>]
+type CreateTweetTable() =
+  inherit Migration()
+  override this.Up() =
+    base.Create.Table("Tweets")
+      .WithColumn("Id").AsGuid().PrimaryKey()
+      .WithColumn("Post").AsString(144).NotNullable()
+      .WithColumn("UserId").AsInt32().ForeignKey("Users", "Id")
+      .WithColumn("TweetedAt").AsDateTimeOffset().NotNullable()
+    |> ignore
+  override this.Down() =
+    base.Delete.Table("Tweets") |> ignore

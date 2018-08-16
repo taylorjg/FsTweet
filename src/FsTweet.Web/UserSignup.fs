@@ -228,17 +228,6 @@ module Suave =
     | CreateUserError err -> handleCreateUserError viewModel err
     | SendSignupEmailError err -> handleSendSignupEmailError viewModel err
 
-  let private handleUserSignupResult viewModel result =
-    Chessie.either
-      (onUserSignupSuccess viewModel)
-      (onUserSignupError viewModel)
-      result
-      
-  let private handleUserSignupAsyncResult viewModel asyncResult =
-    asyncResult
-    |> Async.ofAsyncResult
-    |> Async.map (handleUserSignupResult viewModel)
-
   let private handleUserSignup userSignup ctx = async {
     match bindEmptyForm ctx.request with
     | Choice1Of2 (viewModel: UserSignupViewModel) ->
@@ -249,8 +238,9 @@ module Suave =
           viewModel.Email)
       match result with
       | Success userSignupRequest ->
-        let asyncResult = userSignup userSignupRequest
-        let! webpart = handleUserSignupAsyncResult viewModel asyncResult
+        let! webpart =
+          userSignup userSignupRequest
+          |> AR.either (onUserSignupSuccess viewModel) (onUserSignupError viewModel)
         return! webpart ctx
       | Failure error ->
         let viewModel' = { viewModel with Error = Some error }
@@ -275,17 +265,12 @@ module Suave =
       ex
     page serverErrorPath "Error while verifying email"
 
-  let private handleVerifyUserAsyncResult verificationCode asyncResult =
-    asyncResult
-    |> Async.ofAsyncResult
-    |> Async.map
-      (Chessie.either
-        (onVerificationSuccess verificationCode)
-        (onVerificationFailure verificationCode))
-
   let private handleSignupVerify (verifyUser: VerifyUser) verificationCode ctx = async {
-    let asyncResult = verifyUser verificationCode
-    let! webpart = handleVerifyUserAsyncResult verificationCode asyncResult
+    let! webpart =
+      verifyUser verificationCode
+      |> AR.either
+        (onVerificationSuccess verificationCode)
+        (onVerificationFailure verificationCode)
     return! webpart ctx
   }
 

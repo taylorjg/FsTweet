@@ -2,6 +2,7 @@ source https://www.nuget.org/api/v2
 
 nuget BCrypt.Net-Next
 nuget Chessie
+nuget Chiron
 nuget DotLiquid
 nuget FAKE
 nuget Postmark

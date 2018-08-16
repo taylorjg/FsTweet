@@ -57,7 +57,7 @@ let app =
     path "/" >=> page "guest/home.liquid" ""
     UserSignup.Suave.webPart getDataContext sendEmail
     Auth.Suave.webpart getDataContext
-    Wall.Suave.webpart ()
+    Wall.Suave.webpart getDataContext
   ]
 
 [<EntryPoint>]
