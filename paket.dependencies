@@ -6,6 +6,7 @@ nuget Chiron
 nuget DotLiquid
 nuget FAKE
 nuget Postmark
+nuget stream-net
 nuget suave
 nuget Suave.DotLiquid
 nuget Suave.Experimental

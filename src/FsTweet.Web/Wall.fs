@@ -1,10 +1,61 @@
 namespace Wall
 
+module Domain =
+  open Chessie
+  open Chessie.ErrorHandling
+  open System
+  open Tweet
+  open User
+
+  type NoifyTweet = Tweet -> AsyncResult<unit, Exception>
+
+  type PublishTweetError =
+  | CreateTweetError of Exception
+  | NotifyTweetError of (TweetId * Exception)
+
+  type PublishTweet = User -> Post -> AsyncResult<TweetId, PublishTweetError>
+
+  let publishTweet createTweet notifyTweet (user: User) post = asyncTrial {
+    let! tweetId = createTweet user.UserId post |> AR.mapFailure CreateTweetError
+    let tweet = {
+      Id = tweetId
+      UserId = user.UserId
+      Username = user.Username
+      Post = post
+    }
+    do! notifyTweet tweet |> AR.mapFailure (fun ex -> NotifyTweetError (tweet.Id, ex))
+    return tweetId
+  }
+
+module GetStream =
+  open Chessie.ErrorHandling
+  open Stream
+  open Tweet
+  open User
+
+  let private mapStreamResponse = function
+  | Choice1Of2 _ -> ok ()
+  | Choice2Of2 ex -> fail ex
+
+  let notifyTweet (getStreamClient: GetStream.Client) (tweet: Tweet) = 
+
+    let (UserId userId) = tweet.UserId
+    let (TweetId tweetId) = tweet.Id
+    let userFeed = GetStream.userFeed getStreamClient userId
+    let activity = new Activity(userId.ToString(), "tweet", tweetId.ToString())
+    activity.SetData("tweet", tweet.Post.Value)
+    activity.SetData("username", tweet.Username.Value)
+    userFeed.AddActivity(activity)
+    |> Async.AwaitTask
+    |> Async.Catch
+    |> Async.map mapStreamResponse
+    |> AR
+
 module Suave =
   open Auth.Suave
   open Chessie
-  open Chessie.ErrorHandling
   open Chiron
+  open Domain
   open Suave
   open Suave.DotLiquid
   open Suave.Filters
@@ -15,6 +66,10 @@ module Suave =
 
   type WallViewModel = {
     Username: string
+    UserId: int
+    ApiKey: string
+    AppId: string
+    UserFeedToken: string
   }
 
   type PostRequest = PostRequest of string with
@@ -23,37 +78,51 @@ module Suave =
       return PostRequest post
     }
 
-  let private renderWall (user: User) ctx = async {
-    let viewModel = { Username = user.Username.Value }
+  let private renderWall (getStreamClient: GetStream.Client) (user: User) ctx = async {
+    let (UserId userId) = user.UserId
+    let userFeedToken = GetStream.userFeed getStreamClient userId
+    let viewModel = {
+      Username = user.Username.Value
+      UserId = userId
+      ApiKey = getStreamClient.Config.ApiKey
+      AppId = getStreamClient.Config.AppId
+      UserFeedToken = userFeedToken.ReadOnlyToken
+    }
     return! page "user/wall.liquid" viewModel ctx
   }
 
-  let private onCreateTweetSuccess (TweetId id): WebPart =
+  let private onPublishTweetSuccess (TweetId id): WebPart =
     ["id", String (id.ToString())]
     |> Map.ofList
     |> Object
     |> JSON.ok
 
-  let private onCreateTweetFailure (ex: System.Exception): WebPart =
-    printfn "[onCreateTweetFailure] %A" ex
+  let private onPublishTweetFailure = function
+  | NotifyTweetError (tweetId, ex) ->
+    printfn "[onPublishTweetFailure] %A" ex
+    onPublishTweetSuccess tweetId
+  | CreateTweetError ex ->
+    printfn "[onPublishTweetFailure] %A" ex
     JSON.internalServerError
 
-  let private handleNewTweet createTweet (user: User) ctx = async {
+  let private handleNewTweet (publishTweet: PublishTweet) (user: User) ctx = async {
     match JSON.deserialise ctx.request with
     | Success (PostRequest post) ->
       match Post.TryCreate post with
       | Success post ->
         let! webpart =
-          createTweet user.UserId post
-          |> AR.either onCreateTweetSuccess onCreateTweetFailure
+          publishTweet user post
+          |> AR.either onPublishTweetSuccess onPublishTweetFailure
         return! webpart ctx
       | Failure msg -> return! JSON.badRequest msg ctx
     | Failure msg -> return! JSON.badRequest msg ctx
   }
 
-  let webpart getDataContext =
+  let webpart getDataContext getStreamClient =
     let createTweet = Persistence.createTweet getDataContext
+    let notifyTweet = GetStream.notifyTweet getStreamClient
+    let publishTweet = publishTweet createTweet notifyTweet
     choose [
-      GET >=> path "/wall" >=> requiresAuth renderWall
-      POST >=> path "/tweets" >=> requiresAuth2 (handleNewTweet createTweet)
+      GET >=> path "/wall" >=> requiresAuth (renderWall getStreamClient)
+      POST >=> path "/tweets" >=> requiresAuth2 (handleNewTweet publishTweet)
     ]

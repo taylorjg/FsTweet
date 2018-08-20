@@ -18,6 +18,13 @@ type TweetId = TweetId of Guid
 
 type CreateTweet = UserId -> Post -> AsyncResult<TweetId, Exception>
 
+type Tweet = {
+  UserId: UserId
+  Username: Username
+  Id: TweetId
+  Post: Post
+}
+
 module Persistence =
   open Database
 

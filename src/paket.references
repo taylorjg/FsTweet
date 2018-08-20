@@ -6,6 +6,7 @@ Chessie
 BCrypt.Net-Next
 Postmark
 Chiron
+stream-net
 group Database
 FluentMigrator
 Npgsql.EntityFrameworkCore.PostgreSQL

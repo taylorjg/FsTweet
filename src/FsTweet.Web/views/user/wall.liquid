@@ -27,5 +27,20 @@
 {% endblock %}
 
 {% block scripts %}
+  <script type="text/javascript">
+    window.fsTweet = {
+      stream: {
+        apiKey: "{{model.ApiKey}}",
+        appId: "{{model.AppId}}"
+      },
+      user: {
+        id: "{{model.UserId}}",
+        name: "{{model.Username}}",
+        userFeedToken: "{{model.UserFeedToken}}"
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/getstream/dist/js_min/getstream.js"></script>
+  <script src="assets/js/tweet.js"></script>
   <script src="assets/js/wall.js"></script>
 {% endblock %}
