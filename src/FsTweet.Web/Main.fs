@@ -66,6 +66,7 @@ let app =
     UserSignup.Suave.webPart getDataContext sendEmail
     Auth.Suave.webpart getDataContext
     Wall.Suave.webpart getDataContext getStreamClient
+    UserProfile.Suave.webpart getDataContext getStreamClient
   ]
 
 [<EntryPoint>]

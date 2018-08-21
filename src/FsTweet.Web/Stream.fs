@@ -20,4 +20,4 @@ let newClient config = {
 }
 
 let userFeed getStreamClient userId =
-  getStreamClient.StreamClient.Feed("user", userId.ToString())
+  getStreamClient.StreamClient.Feed("user", string userId)

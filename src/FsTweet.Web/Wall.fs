@@ -80,13 +80,13 @@ module Suave =
 
   let private renderWall (getStreamClient: GetStream.Client) (user: User) ctx = async {
     let (UserId userId) = user.UserId
-    let userFeedToken = GetStream.userFeed getStreamClient userId
+    let userFeed = GetStream.userFeed getStreamClient userId
     let viewModel = {
       Username = user.Username.Value
       UserId = userId
       ApiKey = getStreamClient.Config.ApiKey
       AppId = getStreamClient.Config.AppId
-      UserFeedToken = userFeedToken.ReadOnlyToken
+      UserFeedToken = userFeed.ReadOnlyToken
     }
     return! page "user/wall.liquid" viewModel ctx
   }

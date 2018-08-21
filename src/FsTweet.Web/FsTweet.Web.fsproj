@@ -15,6 +15,7 @@
     <Compile Include="Auth.fs" />
     <Compile Include="Tweet.fs" />
     <Compile Include="Wall.fs" />
+    <Compile Include="UserProfile.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

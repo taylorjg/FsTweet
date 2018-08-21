@@ -29,14 +29,14 @@
 {% block scripts %}
   <script type="text/javascript">
     window.fsTweet = {
-      stream: {
-        apiKey: "{{model.ApiKey}}",
-        appId: "{{model.AppId}}"
-      },
       user: {
         id: "{{model.UserId}}",
         name: "{{model.Username}}",
         userFeedToken: "{{model.UserFeedToken}}"
+      },
+      stream: {
+        apiKey: "{{model.ApiKey}}",
+        appId: "{{model.AppId}}"
       }
     }
   </script>
