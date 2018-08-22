@@ -54,6 +54,11 @@ type AppDbContext =
     with get() = this.tweets
     and set tweets = this.tweets <- tweets
 
+  [<DefaultValue>] val mutable social: DbSet<Social>
+  member this.Social
+    with get() = this.social
+    and set social = this.social <- social
+
 type GetDataContext = unit -> AppDbContext
 
 let dataContext (connectionString: string): GetDataContext =

@@ -42,7 +42,7 @@ module Domain =
     use dbContext = getDataContext ()
     let (UserId followerUserId) = user.UserId
     let queryable = query {
-      for s in dbContext.Set<Social> () do
+      for s in dbContext.Social do
         where (s.FollowerUserId = followerUserId && s.FollowingUserId = userId)
     }
     let! maybeConnection =

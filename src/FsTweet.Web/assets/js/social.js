@@ -1,6 +1,7 @@
 $(() => {
   $('#follow').on('click', () => {
-    const $this = $(this)
+    // const $this = $(this)
+    const $this = $(event.currentTarget)
     const userId = $this.data('user-id')
     $this.prop('disabled', true)
     $.ajax({
