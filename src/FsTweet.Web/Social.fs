@@ -27,7 +27,7 @@ module Domain =
   open Microsoft.EntityFrameworkCore
   open User
 
-  let createFollowing (getDataContext: GetDataContext) (user: User) (UserId userId) =
+  let createFollowing (getDataContext: GetDataContext) (user: User) (UserId userId) = asyncTrial {
     use dbContext = getDataContext ()
     let (UserId followerUserId) = user.UserId
     let social = {
@@ -35,8 +35,14 @@ module Domain =
       FollowerUserId = followerUserId
       FollowingUserId = userId
     }
-    dbContext.Add(social) |> ignore
-    saveChangesAsync dbContext
+    // TODO: refactor into a utility function in the Database module (like saveChangesAsync)
+    do! dbContext.Social.AddAsync(social)
+      |> Async.AwaitTask
+      |> Async.map ignore
+      |> AR.catch
+    do! saveChangesAsync dbContext
+    return ()
+  }
 
   let isFollowing (getDataContext: GetDataContext) (user: User) (UserId userId) = asyncTrial {
     use dbContext = getDataContext ()
