@@ -34,6 +34,12 @@ type [<CLIMutable>] Tweet = {
   TweetedAt: System.DateTime
 }
 
+type [<CLIMutable>] Social = {
+  Id: System.Guid
+  FollowerUserId: int
+  FollowingUserId: int
+}
+
 type AppDbContext =
   inherit DbContext
   

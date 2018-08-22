@@ -159,8 +159,11 @@ module Suave =
 
   let webpart getDataContext =
     let findUser = Persistence.findUser getDataContext
-    path "/login" >=>
-      choose [
-        GET >=> maybeRequiresAuth (renderLoginPage emptyLoginViewModel)
-        POST >=> handleUserLogin findUser
-      ]
+    choose [
+      path "/login" >=>
+        choose [
+          GET >=> maybeRequiresAuth (renderLoginPage emptyLoginViewModel)
+          POST >=> handleUserLogin findUser
+        ]
+      path "/logout" >=> GET >=> deauthenticate >=> redirectToLoginPage
+    ]

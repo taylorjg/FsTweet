@@ -2,13 +2,19 @@ namespace UserProfile
 
 module Domain =
   open Chessie.ErrorHandling
+  open Social.Domain
   open System.Security.Cryptography
   open User
+
+  type UserProfileType =
+  | Self
+  | OtherNotFollowing
+  | OtherFollowing
 
   type UserProfile = {
     User: User
     GravatarUrl: string
-    IsSelf: bool
+    UserProfileType: UserProfileType
   }
 
   let private gravatarUrl (userEmailAddress: UserEmailAddress) =
@@ -20,10 +26,10 @@ module Domain =
     |> String.concat ""
     |> sprintf "http://www.gravatar.com/avatar/%s?s=200"
 
-  let private newProfile user = {
+  let private newProfile userProfileType user = {
     User = user
     GravatarUrl = gravatarUrl user.UserEmailAddress
-    IsSelf = false
+    UserProfileType = userProfileType
   }
 
   type FindUserProfile =
@@ -31,20 +37,30 @@ module Domain =
 
   let findUserProfile
     (findUser: FindUser)
+    (isFollowing: IsFollowing)
     (username: Username)
     maybeLoggedInUser = asyncTrial {
 
     match maybeLoggedInUser with
     | None ->
       let! maybeUser = findUser username
-      return Option.map newProfile maybeUser
+      return Option.map (newProfile OtherNotFollowing) maybeUser
     | Some (user: User) ->
       if user.Username = username then
-        let userProfile = { newProfile user with IsSelf = true }
+        let userProfile = newProfile Self user
         return Some userProfile
       else
         let! maybeUser = findUser username
-        return Option.map newProfile maybeUser      
+        match maybeUser with
+        | Some otherUser ->
+          let! isFollowingOtherUser = isFollowing user otherUser.UserId
+          let userProfileType =
+            if isFollowingOtherUser
+              then OtherFollowing
+              else OtherNotFollowing
+          let userProfile = newProfile userProfileType otherUser
+          return Some userProfile                    
+        | None -> return None
   }
 
 module Suave =
@@ -52,6 +68,7 @@ module Suave =
   open Chessie
   open Database
   open Domain
+  open Social
   open Suave.DotLiquid
   open Suave.Filters
   open User
@@ -62,6 +79,7 @@ module Suave =
     GravatarUrl: string
     IsSelf: bool
     IsLoggedIn: bool
+    IsFollowing: bool
     ApiKey: string
     AppId: string
     UserFeedToken: string
@@ -72,13 +90,19 @@ module Suave =
     (userProfile: UserProfile) =
 
     let (UserId userId) = userProfile.User.UserId
+    let isSelf, isFollowing =
+      match userProfile.UserProfileType with
+      | Self -> true, false
+      | OtherFollowing -> false, true
+      | OtherNotFollowing -> false, false
     let userFeed = GetStream.userFeed getStreamClient userId
     
     {
       Username = userProfile.User.Username.Value
       UserId = userId
       GravatarUrl = userProfile.GravatarUrl
-      IsSelf = userProfile.IsSelf
+      IsSelf = isSelf
+      IsFollowing = isFollowing
       IsLoggedIn = false
       ApiKey = getStreamClient.Config.ApiKey
       AppId = getStreamClient.Config.AppId
@@ -122,7 +146,8 @@ module Suave =
 
   let webpart (getDataContext: GetDataContext) getStreamClient =
     let findUser = Persistence.findUser getDataContext
-    let findUserProfile = findUserProfile findUser
+    let isFollowing = Persistence.isFollowing getDataContext
+    let findUserProfile = findUserProfile findUser isFollowing
     let newUserProfileViewModel = newUserProfileViewModel getStreamClient
     let renderUserProfile = renderUserProfile newUserProfileViewModel findUserProfile
     pathScan "/%s" (fun username -> Suave.maybeRequiresAuth (renderUserProfile username))

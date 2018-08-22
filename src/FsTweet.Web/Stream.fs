@@ -21,3 +21,6 @@ let newClient config = {
 
 let userFeed getStreamClient userId =
   getStreamClient.StreamClient.Feed("user", string userId)
+
+let timelineFeed getStreamClient userId =
+  getStreamClient.StreamClient.Feed("timeline", string userId)

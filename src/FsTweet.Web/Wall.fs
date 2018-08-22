@@ -70,6 +70,7 @@ module Suave =
     ApiKey: string
     AppId: string
     UserFeedToken: string
+    TimelineToken: string
   }
 
   type PostRequest = PostRequest of string with
@@ -81,12 +82,14 @@ module Suave =
   let private renderWall (getStreamClient: GetStream.Client) (user: User) ctx = async {
     let (UserId userId) = user.UserId
     let userFeed = GetStream.userFeed getStreamClient userId
+    let timelineFeed = GetStream.timelineFeed getStreamClient userId
     let viewModel = {
       Username = user.Username.Value
       UserId = userId
       ApiKey = getStreamClient.Config.ApiKey
       AppId = getStreamClient.Config.AppId
       UserFeedToken = userFeed.ReadOnlyToken
+      TimelineToken = timelineFeed.ReadOnlyToken
     }
     return! page "user/wall.liquid" viewModel ctx
   }
