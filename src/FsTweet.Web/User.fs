@@ -4,6 +4,7 @@ open BCrypt.Net
 open Chessie
 open Chessie.ErrorHandling
 open System.Security.Cryptography
+open System.Runtime.InteropServices.ComTypes
 
 let private base64URLEncoding bytes =
   let base64String = System.Convert.ToBase64String bytes
@@ -96,25 +97,36 @@ type FindUser = Username -> AsyncResult<User option, System.Exception>
 module Persistence =
   open Database
   open Microsoft.EntityFrameworkCore
+  open System
 
-  let private mapDbUser (dbUser: Database.User) =
-    let user = trial {
-      let! username = Username.TryCreate dbUser.Username
-      let! passwordHash = PasswordHash.TryCreate dbUser.PasswordHash
-      let! email = EmailAddress.TryCreate dbUser.Email
+  let mapUserEntityToUser (userEntity: Database.User) =
+    let userResult = trial {
+      let! username = Username.TryCreate userEntity.Username
+      let! passwordHash = PasswordHash.TryCreate userEntity.PasswordHash
+      let! email = EmailAddress.TryCreate userEntity.Email
       let userEmailAddress =
-        match dbUser.IsEmailVerified with
+        match userEntity.IsEmailVerified with
         | true -> Verified email
         | false -> NotVerified email
       return {
-        UserId = UserId dbUser.Id
+        UserId = UserId userEntity.Id
         Username = username
         PasswordHash = passwordHash
         UserEmailAddress = userEmailAddress
       }      
     }
-    user
-    |> mapFirstFailure System.Exception
+    userResult |> mapFirstFailure Exception
+
+  let private mapUserEntity (userEntity: Database.User) =
+    mapUserEntityToUser userEntity
+    |> Async.singleton
+    |> AR
+
+  let mapUserEntities (userEntities: Database.User seq) =
+    userEntities
+    |> Seq.map mapUserEntityToUser
+    |> collect
+    |> mapFirstFailure (fun ex -> new AggregateException(ex) :> Exception)
     |> Async.singleton
     |> AR
 
@@ -133,7 +145,7 @@ module Persistence =
       |> AR.mapSuccess (List.ofSeq >> List.tryHead)
     match userToFind with
     | None -> return None
-    | Some dbUser ->
-      let! user = mapDbUser dbUser
+    | Some userEntity ->
+      let! user = mapUserEntity userEntity
       return Some user
   }
