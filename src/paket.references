@@ -7,6 +7,8 @@ BCrypt.Net-Next
 Postmark
 Chiron
 stream-net
+NodaTime
+Logary
 group Database
 FluentMigrator
 Npgsql.EntityFrameworkCore.PostgreSQL

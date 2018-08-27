@@ -5,6 +5,8 @@ nuget Chessie
 nuget Chiron
 nuget DotLiquid
 nuget FAKE
+nuget Logary
+nuget NodaTime 1.3.2
 nuget Postmark
 nuget stream-net
 nuget suave

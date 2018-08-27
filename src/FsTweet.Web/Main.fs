@@ -1,5 +1,9 @@
 ﻿open Database
 open Email
+open Hopac
+open Logary
+open Logary.Configuration
+open Logary.Targets
 open Suave
 open Suave.DotLiquid
 open Suave.Files
@@ -8,6 +12,7 @@ open Suave.Operators
 open System
 open System.IO
 open System.Reflection
+open Aether
 
 let currentPath =
   Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
@@ -58,6 +63,22 @@ let sendEmail =
   | "prod" -> initSendEmail senderEmailAddress postmarkServerKey
   | _ -> consoleSendEmail
 
+let target = withTarget (Console.create Console.empty "console")
+
+let rule = withRule (Rule.createForTarget "console")
+
+let logaryConf = target >> rule
+
+let private readUserState ctx key: 'value option =
+  ctx.userState
+  |> Map.tryFind key
+  |> Option.map (fun x -> x :?> 'value)
+
+let private logIfError (logger: Logger) ctx =
+  readUserState ctx "err"
+  |> Option.iter logger.logSimple
+  succeed
+
 let app =
   choose [
     serveAssets
@@ -72,7 +93,10 @@ let app =
 
 [<EntryPoint>]
 let main argv =
+  let logary = withLogaryManager "FsTweet.Web" logaryConf |> run
+  let logger = logary.getLogger (PointName [|"Suave"|])
+  let appWithLogger = app >=> context (logIfError logger)  
   initDotLiquid
   setCSharpNamingConvention ()
-  startWebServer config app
+  startWebServer config appWithLogger
   0

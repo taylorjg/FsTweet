@@ -56,10 +56,12 @@ module Suave =
   open Chessie
   open Chiron
   open Domain
+  open Logary
   open Suave
   open Suave.DotLiquid
   open Suave.Filters
   open Suave.Operators
+  open Suave.Writers
   open Tweet
   open User
   open UserSignup
@@ -95,18 +97,29 @@ module Suave =
   }
 
   let private onPublishTweetSuccess (TweetId id): WebPart =
-    ["id", String (id.ToString())]
+    ["id", Json.String (id.ToString())]
     |> Map.ofList
-    |> Object
+    |> Json.Object
     |> JSON.ok
 
-  let private onPublishTweetFailure = function
-  | NotifyTweetError (tweetId, ex) ->
-    printfn "[onPublishTweetFailure] %A" ex
-    onPublishTweetSuccess tweetId
-  | CreateTweetError ex ->
-    printfn "[onPublishTweetFailure] %A" ex
-    JSON.internalServerError
+  let private onPublishTweetFailure (user: User) (err: PublishTweetError) =
+    let (UserId userId) = user.UserId
+    let msg =
+      Message.event LogLevel.Error "Tweet Notification Error"
+      |> Message.setField "userId" userId
+    match err with
+    | NotifyTweetError (tweetId, ex) ->
+      let (TweetId guid) = tweetId
+      msg
+      |> Message.addExn ex
+      |> Message.setField "tweetId" guid
+      |> setUserData "err"
+      >=> onPublishTweetSuccess tweetId
+    | CreateTweetError ex ->
+      msg
+      |> Message.addExn ex
+      |> setUserData "err"
+      >=> JSON.internalServerError
 
   let private handleNewTweet (publishTweet: PublishTweet) (user: User) ctx = async {
     match JSON.deserialise ctx.request with
@@ -115,7 +128,7 @@ module Suave =
       | Success post ->
         let! webpart =
           publishTweet user post
-          |> AR.either onPublishTweetSuccess onPublishTweetFailure
+          |> AR.either onPublishTweetSuccess (onPublishTweetFailure user)
         return! webpart ctx
       | Failure msg -> return! JSON.badRequest msg ctx
     | Failure msg -> return! JSON.badRequest msg ctx
