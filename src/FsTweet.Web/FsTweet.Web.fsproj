@@ -23,4 +23,7 @@
     <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+    <Exec Command="cp -r assets views $(OutDir)" />
+  </Target>
 </Project>
