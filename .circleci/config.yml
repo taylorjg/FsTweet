@@ -2,14 +2,14 @@ version: 2
 jobs:
   build-job:
     docker:
-      - image: 17.05.0-ce-git
+      - image: 18.09-rc-git
     steps:
       - checkout
       - setup_remote_docker
       - run: docker build .
   # deploy-job:
   #   docker:
-  #     - image: 17.05.0-ce-git
+  #     - image: 18.09-rc-git
   #   steps:
   #     - checkout
   #     - run:
