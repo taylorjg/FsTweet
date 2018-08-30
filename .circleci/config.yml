@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-job:
     docker:
-      - image: 18.09-rc-git
+      - image: git
     steps:
       - checkout
       - setup_remote_docker
