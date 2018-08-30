@@ -1,6 +1,6 @@
 # Differences from the book
 
-## Not using Forge, Fake or Paket
+## Not using Forge, FAKE or Paket
 
 I decided not to use any of the following:
 
@@ -71,6 +71,28 @@ the following format:
 postgres://{user}:{password}@{hostname}:{port}/{database-name}
 ```
 
+# Deploying
+
+```
+./deploy.sh
+```
+
+# Migrating the database
+
+## Locally
+
+```
+export DATABASE_URL=postgres://postgres:test@localhost:5432/FsTweet
+./migrate.sh
+```
+
+## On Heroku
+
+```
+export DATABASE_URL=postgres://{user}:{password}@{hostname}:{port}/{database-name}
+./migrate.sh
+```
+
 # Problems
 
 ## DotLiquid `extends`
@@ -92,6 +114,34 @@ After some digging/experimentation, I got it working by doing this:
 ```
 {% extends 'master_page.liquid' %}
 ```
+
+## Package woes
+
+When I got rid of `Paket`, I re-added all the relevant packages via `dotnet add` e.g.
+
+```
+dotnet add src/FsTweet.Web/FsTweet.Web.fsproj package Suave
+```
+
+The project built and launched successfully. However, when sending a tweet, I encountered the following exception:
+
+```
+System.MissingMethodException: Method not found: 'System.Tuple`2<Microsoft.FSharp.Core.FSharpFunc`2<System.__Canon,Microsoft.FSharp.Core.FSharpOption`1<!!1>>,Microsoft.FSharp.Core.FSharpFunc`2<!!1,Microsoft.FSharp.Core.FSharpFunc`2<System.__Canon,System.__Canon>>> Prism.ofEpimorphism(Microsoft.FSharp.Core.FSharpFunc`2<System.__Canon,Microsoft.FSharp.Core.FSharpOption`1<!!1>>, Microsoft.FSharp.Core.FSharpFunc`2<!!1,System.__Canon>)'.
+   at Chiron.Mapping.Json.writeWith[a](FSharpFunc`2 toJson, String key, a value)
+   at Social.Suave.ToJson@158-6.Invoke(Unit unitVar) in /Users/jontaylor/HomeProjects/fsharp/tmp/FsTweet/src/FsTweet.Web/Social.fs:line 158
+   at Chiron.Builder.Delay@193.Invoke(Json json)
+   at Social.Suave.onFindFolloweesSuccess(FSharpList`1 users) in /Users/jontaylor/HomeProjects/fsharp/tmp/FsTweet/src/FsTweet.Web/Social.fs:line 207
+   at Chessie.ErrorHandling.AsyncExtensions.Async.map@241.Invoke(a x)
+   at Microsoft.FSharp.Control.AsyncBuilderImpl.args@506-1.Invoke(a a)
+```
+
+I ran `dotnet publish` for both the `Paket` based and non `Paket` based versions of the code and then compared the `md5` hashes of all the dlls. Most of them were identical. The first one that differed was `Aether.dll` (brought in by `Chiron` ?). A bit of digging revealed that the `Paket` based version was using `8.2` of this dll whereas the non `Paket` based version was using `8.0.2`. I explicitly added version `8.2`:
+
+```
+dotnet add src/FsTweet.Web/FsTweet.Web.fsproj package Aether -v 8.2
+```
+
+After doing this and rebuilding, the problem went away.
 
 # Links
 
