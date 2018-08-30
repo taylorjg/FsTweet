@@ -90,7 +90,13 @@ export DATABASE_URL=postgres://postgres:test@localhost:5432/FsTweet
 
 ```
 export DATABASE_URL=postgres://{user}:{password}@{hostname}:{port}/{database-name}
-./migrate.sh
+./migrate.sh -ssl
+```
+
+The `-ssl` flag adds the following extra connection string parameters:
+
+```
+SSL Mode=Require;Trust Server Certificate=true;
 ```
 
 # Problems
