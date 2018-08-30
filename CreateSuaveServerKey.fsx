@@ -1,4 +1,4 @@
-#r "./packages/Suave/lib/net461/Suave.dll"
+#r "/Users/jontaylor/.nuget/packages/suave/2.4.3/lib/netstandard2.0/Suave.dll"
 
 open Suave.Utils
 open System
