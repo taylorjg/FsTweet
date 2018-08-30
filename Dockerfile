@@ -1,4 +1,4 @@
-FROM microsoft/dotnet:2.1-runtime
+FROM microsoft/dotnet:2.1-sdk as build
 WORKDIR /app
-COPY src/FsTweet.Web/bin/Release/netcoreapp2.1/publish ./
-CMD dotnet FsTweet.Web.dll
+COPY src/FsTweet.Web .
+RUN dotnet publish FsTweet.Web.fsproj -c Release
