@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-job:
     docker:
-      - image: git
+      - image: circleci/node:8.4
     steps:
       - checkout
       - setup_remote_docker
