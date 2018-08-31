@@ -105,8 +105,16 @@ SSL Mode=Require;Trust Server Certificate=true;
 * Add an additional variable to the Postmark email template for the base part of the URL
 * Add version information and surface it in the Web UI somewhere (e.g. in the page title)
 * Do some of the suggested excercises
-* Add some unit tests
-* Add some integration tests
+    * Chapter 11
+        * Send a welcome email on successful email verification
+    * Chapter 15
+        * Store user informarion in a database instead of a cookie
+        * Use sliding expiration for the session cookie
+    * Chapter 19
+        * Send an email notification to followee when followee is followed by follower
+        * Add support for unfollowing
+* Add unit tests
+* Add integration tests
 
 # Problems
 
