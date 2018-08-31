@@ -12,6 +12,7 @@ jobs:
       - image: circleci/node:8.4
     steps:
       - checkout
+      - setup_remote_docker
       - run:
           name: Run setup script
           command: bash .circleci/setup-heroku.sh
