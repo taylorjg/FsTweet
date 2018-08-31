@@ -19,25 +19,46 @@ let private mapPostmarkResponse response =
     | _ -> new System.Exception(postmarkResponse.Message) |> fail
   | Choice2Of2 ex -> fail ex
 
-let private sendEmailViaPostmark senderEmailAddress (postmarkClient: PostmarkClient) templatedEmail =
+let private sendEmailViaPostmark
+  senderEmailAddress
+  siteBaseUrl
+  (postmarkClient: PostmarkClient)
+  templatedEmail =
+
+  let fromAddress = senderEmailAddress
+  // TODO: toAddress should be 'templatedEmail.To' but I have not
+  //       submitted my Postmark account for approval yet so I can
+  //       only send to 'senderEmailAddress'.
+  let toAddress = senderEmailAddress
+  let placeHolders =
+    templatedEmail.PlaceHolders
+      .Add("emailAddress", templatedEmail.To)
+      .Add("siteBaseUrl", siteBaseUrl)
+
+  printfn
+    "[sendEmailViaPostmark] From: %s; To: %s; TemplateId: %d; TemplateModel: %A"
+    fromAddress
+    toAddress
+    templatedEmail.TemplateId
+    placeHolders
+
   let msg =
     new TemplatedPostmarkMessage(
-      From = senderEmailAddress,
-      To = senderEmailAddress, // templatedEmail.To,
+      From = fromAddress,
+      To = toAddress,
       TemplateId = templatedEmail.TemplateId,
-      TemplateModel = templatedEmail.PlaceHolders
-        .Add("realEmailAddress", templatedEmail.To)
+      TemplateModel = placeHolders
     )
-  printfn "[sendEmailViaPostmark] sending email: %A" templatedEmail
+
   postmarkClient.SendMessageAsync(msg)
   |> Async.AwaitTask
   |> Async.Catch
   |> Async.map mapPostmarkResponse
   |> AR
 
-let initSendEmail senderEmailAddress serverKey =
+let initSendEmail senderEmailAddress siteBaseUrl serverKey =
   let postmarkClient = new PostmarkClient(serverKey)
-  sendEmailViaPostmark senderEmailAddress postmarkClient
+  sendEmailViaPostmark senderEmailAddress siteBaseUrl postmarkClient
 
 let consoleSendEmail (templatedEmail: TemplatedEmail) = asyncTrial {
   printfn "[consoleSendEmail] sending email: %A" templatedEmail

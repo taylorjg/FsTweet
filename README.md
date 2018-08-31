@@ -53,6 +53,7 @@ export DATABASE_URL=postgres://postgres:test@localhost:5432/FsTweet
 export FSTWEET_ENVIRONMENT=dev
 export FSTWEET_SUAVE_SERVER_KEY=<Suave server key>
 export FSTWEET_SENDER_EMAIL_ADDRESS=<email address>
+export FSTWEET_SITE_BASE_URL=https://fstweet-jt.herokuapp.com
 export FSTWEET_POSTMARK_SERVER_KEY=<Postmark server key>
 export FSTWEET_POSTMARK_TEMPLATE_ID=<Postmark template id>
 export FSTWEET_STREAM_API_KEY=<Stream api key>
@@ -102,7 +103,7 @@ SSL Mode=Require;Trust Server Certificate=true;
 # TODO
 
 * ~~CI/CD via [CircleCI 2.0](https://circleci.com/)~~
-* Add an additional variable to the Postmark email template for the base part of the URL
+* ~~Add an additional variable to the Postmark email template for the base part of the URL~~
 * Add version information and surface it in the Web UI somewhere (e.g. in the page title)
 * Do some of the suggested excercises
     * Chapter 11

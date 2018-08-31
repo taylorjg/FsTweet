@@ -30,17 +30,13 @@ let serveFavIcon =
 
 let portEnvVar = Environment.GetEnvironmentVariable "PORT"
 let port = if String.IsNullOrEmpty portEnvVar then 5000 else int portEnvVar
-
 let databaseUrl = Environment.GetEnvironmentVariable "DATABASE_URL"
 let connectionString = makeConnectionString databaseUrl
 let getDataContext = dataContext connectionString
-
 let postmarkServerKey = Environment.GetEnvironmentVariable "FSTWEET_POSTMARK_SERVER_KEY"
-
 let senderEmailAddress = Environment.GetEnvironmentVariable "FSTWEET_SENDER_EMAIL_ADDRESS"
-
+let siteBaseUrl = Environment.GetEnvironmentVariable "FSTWEET_SITE_BASE_URL"
 let env = Environment.GetEnvironmentVariable "FSTWEET_ENVIRONMENT"
-
 let suaveServerKey = Environment.GetEnvironmentVariable"FSTWEET_SUAVE_SERVER_KEY" |> ServerKey.fromBase64
 
 let streamConfig: GetStream.Config = {
@@ -60,7 +56,7 @@ let config =
 
 let sendEmail =
   match env with
-  | "prod" -> initSendEmail senderEmailAddress postmarkServerKey
+  | "prod" -> initSendEmail senderEmailAddress siteBaseUrl postmarkServerKey
   | _ -> consoleSendEmail
 
 let target = withTarget (Console.create Console.empty "console")
