@@ -7,6 +7,7 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: docker build .
+      # TODO: run tests!
   deploy-job:
     docker:
       - image: circleci/node:8.4
