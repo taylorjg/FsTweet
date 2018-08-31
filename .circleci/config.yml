@@ -15,14 +15,11 @@ jobs:
       - run:
           name: Run setup script
           command: bash .circleci/setup-heroku.sh
-      # - add_ssh_keys:
-      #     fingerprints:
-      #       - "87:da:92:b5:bf:18:cd:06:58:25:64:de:2b:cf:93:b3"
       - run:
           name: Deploy master to Heroku
           command: |
-            heroku container:push web
-            heroku container:release web
+            heroku container:push web --app $HEROKU_APP_NAME
+            heroku container:release web --app $HEROKU_APP_NAME
                
 workflows:
   version: 2
