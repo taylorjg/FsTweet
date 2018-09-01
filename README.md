@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/taylorjg/FsTweet/tree/master.svg?style=svg)](https://circleci.com/gh/taylorjg/FsTweet/tree/master)
+
 # Differences from the book
 
 ## Not using Forge, FAKE or Paket
