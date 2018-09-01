@@ -104,7 +104,7 @@ SSL Mode=Require;Trust Server Certificate=true;
 
 * ~~CI/CD via [CircleCI 2.0](https://circleci.com/)~~
 * ~~Add an additional variable to the Postmark email template for the base part of the URL~~
-* Add version information and surface it in the Web UI somewhere (e.g. in the page title)
+* ~~Add version information and surface it in the Web UI somewhere (e.g. in the page title)~~
 * Do some of the suggested excercises
     * Chapter 11
         * Send a welcome email on successful email verification
