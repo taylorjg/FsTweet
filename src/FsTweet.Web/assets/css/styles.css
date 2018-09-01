@@ -153,3 +153,9 @@ body.loading {
 body.loading .modal {
     display: block;
 }
+
+.version {
+  text-align: center;
+  font-size: smaller;
+  font-style: italic;
+}
