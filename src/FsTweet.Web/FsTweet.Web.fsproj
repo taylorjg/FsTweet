@@ -40,10 +40,10 @@
   </ItemGroup>
   <Target Name="CopyCustomContentAfterBuild" AfterTargets="AfterBuild">
     <Exec Command="cp -r assets views $(OutDir)" />
-    <Exec Command="../../writeVersionInfo.sh $(OutDir)/views/master_page.liquid" />
+    <Exec Command="./writeVersionInfo.sh $(OutDir)/views/master_page.liquid" />
   </Target>
   <Target Name="CopyCustomContentAfterPublish" AfterTargets="Publish">
     <Exec Command="cp -r assets views $(PublishDir)" />
-    <Exec Command="../../writeVersionInfo.sh $(PublishDir)/views/master_page.liquid" />
+    <Exec Command="./writeVersionInfo.sh $(PublishDir)/views/master_page.liquid" />
   </Target>
 </Project>
